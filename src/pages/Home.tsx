@@ -56,9 +56,9 @@ export function Home() {
           <div className="absolute -inset-4 bg-primary/10 blur-3xl rounded-full" />
           <div className="relative bg-white p-4 rounded-[40px] shadow-2xl border border-accent overflow-hidden">
              <img 
-               src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=2070" 
-               alt="AI Interface" 
-               className="rounded-[32px] w-full aspect-[4/3] object-cover"
+               src="/logo.png" 
+               alt="VisionTouch Logo" 
+               className="rounded-[32px] w-full aspect-[4/3] object-contain p-12 bg-primary/5"
              />
              <div className="absolute bottom-10 left-10 right-10 bg-white/80 backdrop-blur-xl p-6 rounded-3xl border border-white/20 shadow-2xl">
                 <div className="flex items-center gap-4">
