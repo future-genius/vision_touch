@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Database, Plus, Trash2, Edit3, Play, RefreshCw, Layers, Check, X, StopCircle } from 'lucide-react';
+import { Database, Plus, Trash2, Play, RefreshCw, Layers, Check, X, StopCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAiStream } from '../hooks/useAiStream';
 import { cn } from '../lib/utils';
@@ -26,7 +26,7 @@ export function DatasetManagement() {
 
   // Real-time Feeding Loop
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (isFeeding && activeDatasetId && aiData.trackingStatus === 'Active') {
       interval = setInterval(async () => {
         // Record current landmarks to Supabase
