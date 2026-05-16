@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, Hand, Zap, Shield, Globe } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Home() {
@@ -8,13 +8,13 @@ export function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="p-6 flex justify-between items-center max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-            <Hand className="text-white w-6 h-6" />
+      <nav className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center relative z-10">
+        <Link to="/" className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center p-2 shadow-lg shadow-primary/20 overflow-hidden">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
           </div>
-          <span className="text-2xl font-black text-primary tracking-tighter">VisionTouch</span>
-        </div>
+          <span className="text-2xl font-black text-primary tracking-tighter uppercase">VisionTouch</span>
+        </Link>
         <div className="flex items-center gap-6">
           {!user ? (
             <Link to="/auth" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20">

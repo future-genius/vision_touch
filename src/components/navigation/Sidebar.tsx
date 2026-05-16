@@ -43,7 +43,7 @@ export function Sidebar() {
     <aside className="w-64 bg-white border-r border-accent flex flex-col h-screen fixed left-0 top-0 hidden md:flex">
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center p-2 shadow-lg shadow-primary/20 overflow-hidden">
-          <img src="/src/assets/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
         </div>
         <h1 className="text-xl font-black text-primary tracking-tighter uppercase">VisionTouch</h1>
       </div>
