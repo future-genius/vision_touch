@@ -1,4 +1,4 @@
-import { Database, Plus, Trash2, Edit3, Play, RefreshCw, Layers } from 'lucide-react';
+import { Database, Plus, Trash2, Edit3, Play, RefreshCw, Layers, Camera } from 'lucide-react';
 
 const mockDatasets = [
   { id: 1, name: 'Standard Office Gestures', samples: 1250, status: 'Active', version: 'v2.1' },

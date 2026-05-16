@@ -1,13 +1,5 @@
 import { Users, Activity, Clock, ShieldCheck, Terminal } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const mockSystemData = [
-  { time: '12:00', load: 45, latency: 12 },
-  { time: '13:00', load: 52, latency: 15 },
-  { time: '14:00', load: 38, latency: 11 },
-  { time: '15:00', load: 65, latency: 18 },
-  { time: '16:00', load: 48, latency: 14 },
-];
+import { cn } from '../lib/utils';
 
 export function AdminMonitor() {
   return (
