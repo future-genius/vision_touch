@@ -1,6 +1,9 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './layouts/MainLayout';
 import { Dashboard } from './pages/Dashboard';
+import { CameraView } from './pages/CameraView';
+import { GesturesView } from './pages/GesturesView';
+import { AnalyticsView } from './pages/AnalyticsView';
 import { Settings } from './pages/Settings';
 import { MobileSync } from './pages/MobileSync';
 import { AdminMonitor } from './pages/AdminMonitor';
@@ -27,9 +30,9 @@ function App() {
       
       <Route path="/dashboard" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
         <Route index element={<Dashboard />} />
-        <Route path="camera" element={<Dashboard />} />
-        <Route path="gestures" element={<Dashboard />} />
-        <Route path="analytics" element={<Dashboard />} />
+        <Route path="camera" element={<CameraView />} />
+        <Route path="gestures" element={<GesturesView />} />
+        <Route path="analytics" element={<AnalyticsView />} />
         <Route path="settings" element={<Settings />} />
         <Route path="mobile-sync" element={<MobileSync />} />
         
