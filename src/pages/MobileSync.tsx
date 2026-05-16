@@ -1,55 +1,102 @@
-import { Smartphone, Wifi, QrCode, Link as LinkIcon } from 'lucide-react';
+import { Smartphone, Laptop, QrCode, ShieldCheck, Zap, Globe } from 'lucide-react';
 
 export function MobileSync() {
   return (
-    <div className="space-y-6 max-w-4xl">
-      <div className="flex justify-between items-end pb-4 border-b border-accent">
+    <div className="space-y-8">
+      <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-2xl font-bold text-primary">Mobile Synchronization</h1>
-          <p className="text-sm text-text-secondary mt-1">Connect your mobile device as a remote camera or control pad</p>
+          <h1 className="text-3xl font-black text-primary tracking-tighter">Multi-Device Synchronization</h1>
+          <p className="text-text-secondary">Link your mobile device as a remote gesture controller</p>
+        </div>
+        <div className="flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full border border-success/20">
+          <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+          <span className="text-[10px] font-black text-success uppercase tracking-widest">Network Ready</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Connection Status */}
-        <div className="bg-white rounded-xl shadow-sm border border-accent p-6 space-y-6 flex flex-col justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2 mb-2">
-              <Smartphone className="w-5 h-5 text-primary" />
-              Device Status
-            </h2>
-            <p className="text-sm text-text-secondary">No active mobile devices connected. Pair a device to stream camera feed directly to the VisionTouch processing engine.</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center pt-10">
+        {/* Connection Visual */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full" />
+          <div className="relative grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="bg-white p-8 rounded-[40px] border border-accent shadow-xl flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center text-primary mb-6">
+                <Laptop className="w-8 h-8" />
+              </div>
+              <h3 className="font-bold text-primary">Master PC</h3>
+              <p className="text-xs text-text-secondary mt-2 uppercase font-black tracking-widest">Node: vision_desktop_01</p>
+            </div>
+
+            <div className="bg-white p-8 rounded-[40px] border border-accent shadow-xl flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-primary/5 rounded-2xl flex items-center justify-center text-primary mb-6">
+                <Smartphone className="w-8 h-8" />
+              </div>
+              <h3 className="font-bold text-primary">Mobile Remote</h3>
+              <p className="text-xs text-text-secondary mt-2 uppercase font-black tracking-widest">Awaiting Link...</p>
+            </div>
+            
+            {/* Connection Line */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-2 bg-accent/20 rounded-full hidden md:block overflow-hidden">
+               <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%' }} />
+            </div>
           </div>
-          
-          <div className="p-4 bg-background border border-accent/50 rounded-lg flex items-center justify-between">
-             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-accent flex items-center justify-center">
-                   <Wifi className="w-5 h-5 text-text-secondary" />
-                </div>
-                <div>
-                   <p className="text-sm font-bold text-text-primary">Local Network</p>
-                   <p className="text-xs text-text-secondary">192.168.1.105:8080</p>
-                </div>
-             </div>
-             <span className="text-xs font-semibold bg-success/10 text-success px-2 py-1 rounded">Ready to pair</span>
+
+          <div className="mt-12 space-y-6">
+            <div className="flex items-center gap-4 group">
+               <div className="p-3 bg-success/10 rounded-xl text-success group-hover:bg-success group-hover:text-white transition-all">
+                  <ShieldCheck className="w-5 h-5" />
+               </div>
+               <div>
+                  <h4 className="font-bold text-primary">End-to-End Encrypted</h4>
+                  <p className="text-xs text-text-secondary">Your gesture data never leaves your local network.</p>
+               </div>
+            </div>
+            <div className="flex items-center gap-4 group">
+               <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500 group-hover:bg-amber-500 group-hover:text-white transition-all">
+                  <Zap className="w-5 h-5" />
+               </div>
+               <div>
+                  <h4 className="font-bold text-primary">Sub-10ms Latency</h4>
+                  <p className="text-xs text-text-secondary">Optimized for high-speed professional workflows.</p>
+               </div>
+            </div>
           </div>
         </div>
 
-        {/* Pairing Instructions */}
-        <div className="bg-white rounded-xl shadow-sm border border-accent p-6 flex flex-col items-center justify-center text-center space-y-4">
-           <div className="w-32 h-32 bg-background border border-accent rounded-lg flex items-center justify-center mb-2 shadow-inner">
-             <QrCode className="w-16 h-16 text-text-primary opacity-50" />
-           </div>
-           <div>
-             <h3 className="font-bold text-text-primary">Scan to Connect</h3>
-             <p className="text-xs text-text-secondary max-w-[250px] mt-1 mx-auto">
-               Open the VisionTouch Mobile App and scan this QR code to establish a secure WebSocket connection.
-             </p>
-           </div>
-           <button className="mt-4 px-4 py-2 border border-accent text-text-primary font-medium text-sm rounded hover:bg-background transition-colors flex items-center gap-2">
-             <LinkIcon className="w-4 h-4" />
-             Manual IP Entry
-           </button>
+        {/* QR Section */}
+        <div className="bg-primary p-12 rounded-[50px] shadow-2xl shadow-primary/40 relative overflow-hidden flex flex-col items-center text-center text-white">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)]" />
+          
+          <div className="relative mb-8 p-4 bg-white rounded-[40px] shadow-2xl">
+            <div className="w-64 h-64 border-4 border-dashed border-primary/20 rounded-3xl flex items-center justify-center bg-background p-4">
+              {/* Custom Neural QR Placeholder */}
+              <div className="relative w-full h-full bg-primary/5 rounded-2xl overflow-hidden grid grid-cols-4 grid-rows-4 gap-2">
+                 {[...Array(16)].map((_, i) => (
+                   <div key={i} className={`rounded-sm ${Math.random() > 0.5 ? 'bg-primary' : 'bg-transparent'}`} />
+                 ))}
+                 <div className="absolute inset-0 flex items-center justify-center">
+                    <QrCode className="w-20 h-20 text-primary opacity-20" />
+                 </div>
+              </div>
+            </div>
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
+               Scan to Link
+            </div>
+          </div>
+
+          <h2 className="text-3xl font-black tracking-tighter mb-4">Pair Your Device</h2>
+          <p className="text-white/70 text-sm max-w-xs mb-8">
+            Open the <b>VisionTouch PWA</b> on your phone and scan the secure code to sync gestures.
+          </p>
+
+          <div className="flex gap-4">
+             <button className="bg-white text-primary px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">
+                Download PWA
+             </button>
+             <button className="bg-primary border border-white/20 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
+                <Globe className="w-4 h-4" /> Global Link
+             </button>
+          </div>
         </div>
       </div>
     </div>

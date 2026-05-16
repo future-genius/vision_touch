@@ -18,12 +18,11 @@ export function Home() {
         <div className="flex items-center gap-6">
           {!user ? (
             <Link to="/auth" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20">
-              Sign In
+              Get Started
             </Link>
           ) : (
-            <Link to="/" className="text-primary font-bold flex items-center gap-2 group">
-              Go to {role === 'admin' ? 'Admin Dashboard' : 'User Panel'}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            <Link to="/dashboard" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20 flex items-center gap-2">
+              Open Dashboard <ArrowRight className="w-4 h-4" />
             </Link>
           )}
         </div>
@@ -33,22 +32,22 @@ export function Home() {
       <section className="max-w-7xl mx-auto px-6 pt-20 pb-32 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
         <div className="space-y-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/5 rounded-full border border-primary/10">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Enterprise AI v4.0</span>
+            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Real-Time Engine Active</span>
           </div>
           <h1 className="text-6xl lg:text-8xl font-black text-primary leading-[0.9] tracking-tighter">
-            Control the World <br />
-            <span className="text-text-secondary/20">Without Touching It.</span>
+            Your Hands <br />
+            <span className="text-text-secondary/20">Are the Controller.</span>
           </h1>
           <p className="text-xl text-text-secondary max-w-lg leading-relaxed">
-            Professional AI gesture interface for medical, research, and high-performance workstation control. Real-time sub-10ms latency.
+            The world's most advanced AI gesture interface. Connect your camera and control your workstation with zero-latency neural tracking.
           </p>
           <div className="flex gap-4">
-            <Link to="/auth" className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl hover:shadow-primary/30 transition-all flex items-center gap-3">
-              Get Started Free <ArrowRight className="w-5 h-5" />
+            <Link to={user ? "/dashboard" : "/auth"} className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl hover:shadow-primary/30 transition-all flex items-center gap-3">
+              {user ? "Back to Dashboard" : "Start Controlling Now"} <ArrowRight className="w-5 h-5" />
             </Link>
             <button className="px-8 py-4 rounded-2xl font-bold text-lg border border-accent hover:bg-white transition-all">
-              Watch Demo
+              Documentation
             </button>
           </div>
         </div>
