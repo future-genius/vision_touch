@@ -1,39 +1,50 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Database, Plus, Trash2, Edit3, Play, RefreshCw, Layers, Check, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface Dataset {
-  id: number;
+  id: string;
   name: string;
-  samples: number;
+  samples_count: number;
   status: string;
   version: string;
 }
 
 export function DatasetManagement() {
-  const [datasets, setDatasets] = useState<Dataset[]>([
-    { id: 1, name: 'Standard Office Gestures', samples: 1250, status: 'Active', version: 'v2.1' },
-    { id: 2, name: 'Surgical Precision Set', samples: 4800, status: 'Training', version: 'v3.0' },
-  ]);
+  const [datasets, setDatasets] = useState<Dataset[]>([]);
+
+  useEffect(() => {
+    fetchDatasets();
+  }, []);
+
+  async function fetchDatasets() {
+    const { data } = await supabase
+      .from('datasets')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (data) setDatasets(data);
+  }
 
   const [isAdding, setIsAdding] = useState(false);
   const [newName, setNewName] = useState('');
 
-  const addDataset = () => {
+  const addDataset = async () => {
     if (!newName) return;
-    const newId = datasets.length > 0 ? Math.max(...datasets.map(d => d.id)) + 1 : 1;
-    setDatasets([...datasets, {
-      id: newId,
-      name: newName,
-      samples: 0,
-      status: 'Idle',
-      version: 'v1.0'
-    }]);
-    setNewName('');
-    setIsAdding(false);
+    const { error } = await supabase
+      .from('datasets')
+      .insert([{ name: newName, samples_count: 0, status: 'Active', version: 'v1.0.0' }]);
+    
+    if (!error) {
+      setNewName('');
+      setIsAdding(false);
+      fetchDatasets();
+    }
   };
 
-  const removeDataset = (id: number) => {
-    setDatasets(datasets.filter(d => d.id !== id));
+  const removeDataset = async (id: string) => {
+    const { error } = await supabase.from('datasets').delete().eq('id', id);
+    if (!error) fetchDatasets();
   };
 
   return (
@@ -83,7 +94,7 @@ export function DatasetManagement() {
                 <div>
                   <h3 className="text-xl font-black text-primary tracking-tighter">{dataset.name}</h3>
                   <div className="flex items-center gap-4 mt-2 text-xs font-bold text-text-secondary uppercase tracking-widest">
-                    <span className="flex items-center gap-2 text-primary"><Layers className="w-4 h-4" /> {dataset.samples} samples</span>
+                    <span className="flex items-center gap-2 text-primary"><Layers className="w-4 h-4" /> {dataset.samples_count} samples</span>
                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                     <span>Version {dataset.version}</span>
                   </div>
