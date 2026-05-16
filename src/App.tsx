@@ -21,9 +21,9 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/auth" element={user ? <Navigate to="/" /> : <Login />} />
       
-      <Route path="/" element={user ? <MainLayout /> : <Navigate to="/login" />}>
+      <Route path="/" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
         <Route index element={<Dashboard />} />
         <Route path="camera" element={<Dashboard />} />
         <Route path="gestures" element={<Dashboard />} />
