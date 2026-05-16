@@ -6,100 +6,124 @@ import websockets
 import json
 import time
 
-# Performance Optimization: Disable PyAutoGUI fail-safe for smoother motion
-# (Use Ctrl+C in terminal to stop if needed)
-pyautogui.FAILSAFE = False
-pyautogui.PAUSE = 0
-
+# Initialize MediaPipe
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
     static_image_mode=False,
     max_num_hands=1,
     min_detection_confidence=0.7,
-    min_tracking_confidence=0.7
+    min_tracking_confidence=0.5
 )
 mp_draw = mp.solutions.drawing_utils
 
-# Screen size
-SCREEN_WIDTH, SCREEN_HEIGHT = pyautogui.size()
+# Screen dimensions
+screen_width, screen_height = pyautogui.size()
+pyautogui.FAILSAFE = True
 
 class VisionEngine:
     def __init__(self):
         self.cap = cv2.VideoCapture(0)
-        self.prev_x, self.prev_y = 0, 0
-        self.smoothening = 5
+        self.is_running = True
+        self.current_gesture = "None"
+        self.confidence = 0.0
+        self.fps = 0
+        self.prev_time = 0
+        self.landmark_count = 0
+        self.inference_time = 0
+
+    def get_gesture(self, landmarks):
+        # Basic Gesture Logic
+        thumb_tip = landmarks[4]
+        index_tip = landmarks[8]
+        middle_tip = landmarks[12]
         
-    async def process_frames(self, websocket):
-        print("Vision Engine Active. Controlling cursor...")
-        while self.cap.isOpened():
-            success, image = self.cap.read()
-            if not success: continue
-
-            # Flip image for natural mirror effect
-            image = cv2.flip(image, 1)
-            h, w, _ = image.shape
+        # Distance between thumb and index
+        dist = ((thumb_tip.x - index_tip.x)**2 + (thumb_tip.y - index_tip.y)**2)**0.5
+        
+        if dist < 0.05:
+            return "Pinch/Click", 95.0
+        
+        if index_tip.y < landmarks[6].y and middle_tip.y > landmarks[10].y:
+            return "Index Pointer", 98.0
             
-            # Convert to RGB for MediaPipe
-            rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            results = hands.process(rgb_image)
-
-            gesture = "None"
-            confidence = 0
+        if index_tip.y < landmarks[6].y and middle_tip.y < landmarks[10].y:
+            return "Two Finger Spread", 92.0
             
+        return "Palm Open", 85.0
+
+    async def run(self, websocket):
+        print(f"Server started. WebSocket Connected.")
+        while self.is_running:
+            start_time = time.time()
+            success, frame = self.cap.read()
+            if not success:
+                break
+
+            # Flip and Process
+            frame = cv2.flip(frame, 1)
+            h, w, c = frame.shape
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = hands.process(rgb_frame)
+
+            self.current_gesture = "None"
+            self.confidence = 0.0
+            self.landmark_count = 0
+
             if results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
-                    # Index finger tip is landmark 8
-                    index_tip = hand_landmarks.landmark[8]
-                    thumb_tip = hand_landmarks.landmark[4]
-                    middle_tip = hand_landmarks.landmark[12]
-
-                    # Convert normalized to pixel coordinates
-                    x = int(index_tip.x * SCREEN_WIDTH)
-                    y = int(index_tip.y * SCREEN_HEIGHT)
-
-                    # Smooth cursor movement
-                    curr_x = self.prev_x + (x - self.prev_x) / self.smoothening
-                    curr_y = self.prev_y + (y - self.prev_y) / self.smoothening
+                    self.landmark_count = len(hand_landmarks.landmark)
+                    self.current_gesture, self.confidence = self.get_gesture(hand_landmarks.landmark)
                     
-                    # Move Cursor
-                    pyautogui.moveTo(curr_x, curr_y)
-                    self.prev_x, self.prev_y = curr_x, curr_y
-
-                    # Simple Click Detection (Distance between Index and Thumb)
-                    dist = ((index_tip.x - thumb_tip.x)**2 + (index_tip.y - thumb_tip.y)**2)**0.5
-                    if dist < 0.05:
+                    # Cursor Control (Index Tip)
+                    index_tip = hand_landmarks.landmark[8]
+                    cursor_x = int(index_tip.x * screen_width)
+                    cursor_y = int(index_tip.y * screen_height)
+                    
+                    # Smooth Move
+                    pyautogui.moveTo(cursor_x, cursor_y, duration=0.1)
+                    
+                    if self.current_gesture == "Pinch/Click":
                         pyautogui.click()
-                        gesture = "Click"
-                        confidence = 0.95
-                    else:
-                        gesture = "Pointer"
-                        confidence = 0.98
 
-                    # Send data to React Dashboard
-                    data = {
-                        "gesture": gesture,
-                        "confidence": confidence * 100,
-                        "x": index_tip.x,
-                        "y": index_tip.y,
-                        "fps": 30.0, # Placeholder
-                        "landmarkCount": 21,
-                        "trackingStatus": "Active",
-                        "inferenceTimeMs": 12.5
-                    }
-                    await websocket.send(json.dumps(data))
+                    # Draw landmarks on frame (Optional, for local debugging)
+                    mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-            if cv2.waitKey(5) & 0xFF == 27:
+            # Calculate FPS
+            self.fps = int(1 / (time.time() - start_time))
+            self.inference_time = (time.time() - start_time) * 1000
+
+            # Send Telemetry to Frontend
+            payload = {
+                "gesture": self.current_gesture,
+                "confidence": self.confidence,
+                "fps": self.fps,
+                "landmarkCount": self.landmark_count,
+                "inferenceTimeMs": self.inference_time,
+                "trackingStatus": "Active" if results.multi_hand_landmarks else "Idle"
+            }
+            
+            try:
+                await websocket.send(json.dumps(payload))
+            except websockets.exceptions.ConnectionClosed:
+                print("Frontend disconnected.")
                 break
-        self.cap.release()
 
-async def handler(websocket):
-    engine = VisionEngine()
-    await engine.process_frames(websocket)
+            # Local Window (Optional)
+            cv2.putText(frame, f"Gesture: {self.current_gesture}", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.imshow("VisionTouch Engine v4", frame)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.is_running = False
+                break
+
+        self.cap.release()
+        cv2.destroyAllWindows()
 
 async def main():
-    print("Starting WebSocket Server on ws://localhost:8765")
-    async with websockets.serve(handler, "localhost", 8765):
+    engine = VisionEngine()
+    async with websockets.serve(engine.run, "localhost", 8765):
+        print("Vision Engine running on ws://localhost:8765")
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

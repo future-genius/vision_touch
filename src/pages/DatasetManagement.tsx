@@ -1,44 +1,80 @@
-import { Database, Plus, Trash2, Edit3, Play, RefreshCw, Layers, Camera } from 'lucide-react';
+import { useState } from 'react';
+import { Database, Plus, Trash2, Edit3, Play, RefreshCw, Layers, Check, X } from 'lucide-react';
 
-const mockDatasets = [
-  { id: 1, name: 'Standard Office Gestures', samples: 1250, status: 'Active', version: 'v2.1' },
-  { id: 2, name: 'Surgical Precision Set', samples: 4800, status: 'Training', version: 'v3.0' },
-  { id: 3, name: 'Mobile Interaction Batch', samples: 920, status: 'Active', version: 'v1.4' },
-];
+interface Dataset {
+  id: number;
+  name: string;
+  samples: number;
+  status: string;
+  version: string;
+}
 
 export function DatasetManagement() {
+  const [datasets, setDatasets] = useState<Dataset[]>([
+    { id: 1, name: 'Standard Office Gestures', samples: 1250, status: 'Active', version: 'v2.1' },
+    { id: 2, name: 'Surgical Precision Set', samples: 4800, status: 'Training', version: 'v3.0' },
+  ]);
+
+  const [isAdding, setIsAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+
+  const addDataset = () => {
+    if (!newName) return;
+    const newId = datasets.length > 0 ? Math.max(...datasets.map(d => d.id)) + 1 : 1;
+    setDatasets([...datasets, {
+      id: newId,
+      name: newName,
+      samples: 0,
+      status: 'Idle',
+      version: 'v1.0'
+    }]);
+    setNewName('');
+    setIsAdding(false);
+  };
+
+  const removeDataset = (id: number) => {
+    setDatasets(datasets.filter(d => d.id !== id));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-black text-primary tracking-tighter">Dataset Control Center</h1>
+          <h1 className="text-3xl font-black text-primary tracking-tighter uppercase">Dataset Control Center</h1>
           <p className="text-text-secondary">Enterprise-grade data feeding and model management</p>
         </div>
-        <button className="bg-primary text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:shadow-xl hover:shadow-primary/20 transition-all">
-          <Plus className="w-5 h-5" /> Create New Set
-        </button>
+        {!isAdding ? (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="bg-primary text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:shadow-xl hover:shadow-primary/20 transition-all active:scale-95"
+          >
+            <Plus className="w-5 h-5" /> Create New Set
+          </button>
+        ) : (
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Dataset Name..."
+              className="bg-white border border-primary/20 px-4 py-3 rounded-2xl text-sm focus:outline-none focus:border-primary w-64"
+            />
+            <button onClick={addDataset} className="p-3 bg-success text-white rounded-xl hover:bg-success/90 transition-all"><Check className="w-5 h-5" /></button>
+            <button onClick={() => setIsAdding(false)} className="p-3 bg-error text-white rounded-xl hover:bg-error/90 transition-all"><X className="w-5 h-5" /></button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Datasets List */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-primary/5 p-8 rounded-[32px] border border-primary/20 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-primary rounded-2xl text-white animate-pulse shadow-lg shadow-primary/20">
-                <Camera className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-primary tracking-tighter">Neural Capture Mode</h3>
-                <p className="text-sm text-text-secondary">Capture real-time hand gestures to feed the AI engine</p>
-              </div>
+          {datasets.length === 0 && (
+            <div className="bg-white p-20 rounded-[40px] border border-dashed border-accent flex flex-col items-center text-center">
+               <Database className="w-12 h-12 text-accent mb-4" />
+               <p className="text-text-secondary font-bold">No datasets found. Create your first one to start training.</p>
             </div>
-            <div className="flex gap-3">
-               <button className="px-6 py-3 bg-primary text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-xl shadow-primary/20">Record Batch</button>
-               <button className="px-6 py-3 bg-white border border-accent text-xs font-black uppercase tracking-widest rounded-xl hover:bg-background transition-all">Live Feed</button>
-            </div>
-          </div>
+          )}
 
-          {mockDatasets.map((dataset) => (
+          {datasets.map((dataset) => (
             <div key={dataset.id} className="bg-white p-8 rounded-[32px] shadow-sm border border-accent flex items-center justify-between group hover:border-primary/30 transition-all">
               <div className="flex items-center gap-5">
                 <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-all">
@@ -64,7 +100,10 @@ export function DatasetManagement() {
                   <button className="p-3 bg-background text-text-secondary hover:text-primary hover:bg-primary/5 rounded-xl transition-all">
                     <Edit3 className="w-5 h-5" />
                   </button>
-                  <button className="p-3 bg-background text-text-secondary hover:text-error hover:bg-error/5 rounded-xl transition-all">
+                  <button 
+                    onClick={() => removeDataset(dataset.id)}
+                    className="p-3 bg-background text-text-secondary hover:text-error hover:bg-error/5 rounded-xl transition-all active:scale-90"
+                  >
                     <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
@@ -73,7 +112,6 @@ export function DatasetManagement() {
           ))}
         </div>
 
-        {/* Dataset Controls */}
         <div className="space-y-6">
           <div className="bg-white p-8 rounded-[32px] shadow-sm border border-accent">
             <h3 className="text-lg font-black text-primary mb-4 flex items-center gap-2 uppercase tracking-tighter">
@@ -81,32 +119,12 @@ export function DatasetManagement() {
               Feed AI Engine
             </h3>
             <p className="text-sm text-text-secondary mb-8 leading-relaxed">
-              Inject new labeled samples into the active inference model to improve recognition accuracy.
+              Inject new labeled samples into the active inference model.
             </p>
             <div className="space-y-4">
               <button className="w-full py-4 bg-primary text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all flex items-center justify-center gap-2 shadow-xl shadow-primary/20">
                  <Play className="w-4 h-4" /> Start Feeding Cycle
               </button>
-              <button className="w-full py-4 bg-white border border-primary/20 text-primary rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-primary/5 transition-all">
-                 Validate Data Integrity
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-primary p-10 rounded-[40px] text-white shadow-2xl shadow-primary/30 relative overflow-hidden group">
-            <div className="absolute -right-10 -top-10 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-            <div className="relative z-10">
-              <h3 className="text-2xl font-black tracking-tighter mb-2">Engine Training</h3>
-              <p className="text-xs text-white/70 mb-8 uppercase tracking-widest font-bold">In-Progress Optimization</p>
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <span className="text-xs font-black uppercase">Batch Progress</span>
-                  <span className="text-2xl font-black tracking-tighter">75.4%</span>
-                </div>
-                <div className="h-3 bg-white/20 rounded-full overflow-hidden">
-                  <div className="h-full w-3/4 bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.5)]" />
-                </div>
-              </div>
             </div>
           </div>
         </div>
