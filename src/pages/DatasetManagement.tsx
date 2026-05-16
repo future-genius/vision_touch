@@ -22,6 +22,22 @@ export function DatasetManagement() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Datasets List */}
         <div className="lg:col-span-2 space-y-4">
+          <div className="bg-primary/5 p-6 rounded-2xl border border-primary/20 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-primary rounded-xl text-white animate-pulse">
+                <Camera className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-primary">Live Dataset Capture Mode</h3>
+                <p className="text-xs text-text-secondary">Capture real-time hand gestures to retrain the engine</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+               <button className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg shadow-lg shadow-primary/20">Start Recording</button>
+               <button className="px-4 py-2 bg-white border border-accent text-xs font-bold rounded-lg">Save Batch</button>
+            </div>
+          </div>
+
           {mockDatasets.map((dataset) => (
             <div key={dataset.id} className="bg-white p-6 rounded-2xl shadow-sm border border-accent flex items-center justify-between group hover:border-primary/30 transition-all">
               <div className="flex items-center gap-4">

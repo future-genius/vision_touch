@@ -6,6 +6,7 @@ import { MobileSync } from './pages/MobileSync';
 import { AdminMonitor } from './pages/AdminMonitor';
 import { DatasetManagement } from './pages/DatasetManagement';
 import { Login } from './pages/Login';
+import { Home } from './pages/Home';
 import { useAuth } from './context/AuthContext';
 
 function App() {
@@ -14,16 +15,17 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin shadow-2xl" />
       </div>
     );
   }
 
   return (
     <Routes>
-      <Route path="/auth" element={user ? <Navigate to="/" /> : <Login />} />
+      <Route path="/" element={<Home />} />
+      <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <Login />} />
       
-      <Route path="/" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
+      <Route path="/dashboard" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
         <Route index element={<Dashboard />} />
         <Route path="camera" element={<Dashboard />} />
         <Route path="gestures" element={<Dashboard />} />

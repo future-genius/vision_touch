@@ -20,22 +20,22 @@ export function Sidebar() {
   const { role, signOut, user } = useAuth();
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-    { icon: Camera, label: 'Camera', path: '/camera' },
-    { icon: Hand, label: 'Gestures', path: '/gestures' },
-    { icon: BarChart2, label: 'Analytics', path: '/analytics' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: Camera, label: 'Camera', path: '/dashboard/camera' },
+    { icon: Hand, label: 'Gestures', path: '/dashboard/gestures' },
+    { icon: BarChart2, label: 'Analytics', path: '/dashboard/analytics' },
   ];
 
   const adminItems = [
-    { icon: ShieldCheck, label: 'Admin Monitor', path: '/admin' },
-    { icon: Database, label: 'Datasets', path: '/datasets' },
+    { icon: ShieldCheck, label: 'Admin Monitor', path: '/dashboard/admin' },
+    { icon: Database, label: 'Datasets', path: '/dashboard/datasets' },
   ];
 
   const settingsItems = [
-    { icon: Settings, label: 'Settings', path: '/settings' },
-    { icon: Smartphone, label: 'Mobile Sync', path: '/mobile-sync' },
-    { icon: Cloud, label: 'Cloud Sync', path: '/cloud-sync' },
-    { icon: Info, label: 'About', path: '/about' },
+    { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
+    { icon: Smartphone, label: 'Mobile Sync', path: '/dashboard/mobile-sync' },
+    { icon: Cloud, label: 'Cloud Sync', path: '/dashboard/cloud-sync' },
+    { icon: Info, label: 'About', path: '/dashboard/about' },
   ];
 
   return (

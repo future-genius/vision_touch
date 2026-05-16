@@ -20,23 +20,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check active sessions
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Mock role logic: first user or admin email domain
-        const isDefaultAdmin = session.user.email?.endsWith('@visiontouch.com') || false;
-        setRole(isDefaultAdmin ? 'admin' : 'user');
+        const isAdmin = session.user.email === 'projectvisiontouch@gmail.com' || session.user.email?.endsWith('@visiontouch.com');
+        setRole(isAdmin ? 'admin' : 'user');
       }
       setLoading(false);
     });
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        const isDefaultAdmin = session.user.email?.endsWith('@visiontouch.com') || false;
-        setRole(isDefaultAdmin ? 'admin' : 'user');
+        const isAdmin = session.user.email === 'projectvisiontouch@gmail.com' || session.user.email?.endsWith('@visiontouch.com');
+        setRole(isAdmin ? 'admin' : 'user');
       }
       setLoading(false);
     });
