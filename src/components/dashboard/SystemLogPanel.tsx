@@ -6,36 +6,42 @@ export function SystemLogPanel() {
   const { logs } = useAiStream();
 
   return (
-    <div className="bg-text-primary rounded-xl shadow-sm border border-text-primary p-4 md:p-6 flex flex-col h-full text-white">
-      <h2 className="text-lg font-semibold flex items-center gap-2 mb-4 text-accent">
-        <Terminal className="w-5 h-5 text-accent" />
-        System Logs
-      </h2>
+    <div className="bg-[#0F172A] rounded-3xl p-8 h-full border border-white/5 shadow-2xl flex flex-col">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-widest">
+          <Terminal className="w-4 h-4 text-primary" />
+          System Engine Logs
+        </h2>
+        <div className="flex gap-1">
+          <div className="w-2 h-2 rounded-full bg-error/40" />
+          <div className="w-2 h-2 rounded-full bg-amber-400/40" />
+          <div className="w-2 h-2 rounded-full bg-success/40" />
+        </div>
+      </div>
 
-      <div className="flex-1 bg-[#1A2235] rounded-lg p-3 font-mono text-xs overflow-y-auto min-h-[150px] border border-white/10 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar">
         {logs.length === 0 ? (
-          <div className="text-text-secondary/50 h-full flex items-center justify-center">
-            Waiting for logs...
+          <div className="text-[#475569] text-[10px] font-mono italic">
+            Waiting for neural engine telemetry...
           </div>
         ) : (
-          <ul className="space-y-1">
-            {logs.map((log, index) => {
-              const isWarning = log.includes('Warning');
-              const isError = log.includes('Error');
+          <div className="space-y-3 font-mono text-[10px] leading-relaxed">
+            {logs.map((log: any, index: number) => {
+              const typeColors = {
+                info: 'text-slate-400',
+                success: 'text-success',
+                warning: 'text-amber-500',
+                error: 'text-error'
+              };
+              
               return (
-                <li 
-                  key={index} 
-                  className={cn(
-                    "break-all",
-                    isWarning ? "text-amber-400" : isError ? "text-error" : "text-[#A0AEC0]"
-                  )}
-                >
-                  <span className="opacity-50 select-none mr-2">{'>'}</span>
-                  {log}
-                </li>
+                <div key={index} className={cn("flex gap-3", typeColors[log.type as keyof typeof typeColors])}>
+                  <span className="opacity-30">[{log.timestamp}]</span>
+                  <span className="font-medium tracking-tight">{log.message}</span>
+                </div>
               );
             })}
-          </ul>
+          </div>
         )}
       </div>
     </div>

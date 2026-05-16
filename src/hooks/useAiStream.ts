@@ -20,10 +20,11 @@ export function useAiStream() {
   });
 
   const [history, setHistory] = useState<{ time: string; confidence: number; fps: number }[]>([]);
+  const [logs, setLogs] = useState<{ timestamp: string; message: string; type: 'info' | 'success' | 'warning' | 'error' }[]>([]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
+    let reconnectTimeout: any;
 
     const connect = () => {
       socket = new WebSocket('ws://localhost:8765');
@@ -31,31 +32,44 @@ export function useAiStream() {
       socket.onopen = () => {
         console.log('Connected to Vision Engine');
         setData(prev => ({ ...prev, trackingStatus: 'Idle' }));
+        setLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString(), message: 'Connected to local Vision Engine', type: 'success' as const }].slice(-50));
       };
 
       socket.onmessage = (event) => {
-        const payload = JSON.parse(event.data);
-        setData({
-          gesture: payload.gesture,
-          confidence: payload.confidence,
-          fps: payload.fps,
-          landmarkCount: payload.landmarkCount,
-          inferenceTimeMs: payload.inferenceTimeMs,
-          trackingStatus: payload.trackingStatus,
-        });
+        try {
+          const payload = JSON.parse(event.data);
+          setData({
+            gesture: payload.gesture,
+            confidence: payload.confidence,
+            fps: payload.fps,
+            landmarkCount: payload.landmarkCount,
+            inferenceTimeMs: payload.inferenceTimeMs,
+            trackingStatus: payload.trackingStatus,
+          });
 
-        // Update History for Analytics
-        setHistory(prev => {
-          const now = new Date();
-          const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
-          return [...prev, { time: timeStr, confidence: payload.confidence, fps: payload.fps }].slice(-20);
-        });
+          // Update Logs if a significant gesture is detected
+          if (payload.gesture !== 'None') {
+            setLogs(prev => [...prev, { 
+              timestamp: new Date().toLocaleTimeString(), 
+              message: `Detected: ${payload.gesture} (${payload.confidence.toFixed(1)}%)`, 
+              type: 'info' as const 
+            }].slice(-50));
+          }
+
+          setHistory(prev => {
+            const now = new Date();
+            const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+            return [...prev, { time: timeStr, confidence: payload.confidence, fps: payload.fps }].slice(-20);
+          });
+        } catch (e) {
+          console.error('Error parsing WebSocket data', e);
+        }
       };
 
       socket.onclose = () => {
-        console.log('Vision Engine Disconnected. Retrying...');
         setData(prev => ({ ...prev, trackingStatus: 'Offline' }));
-        reconnectTimeout = setTimeout(connect, 3000); // Retry every 3 seconds
+        setLogs(prev => [...prev, { timestamp: new Date().toLocaleTimeString(), message: 'Vision Engine Disconnected. Attempting reconnect...', type: 'warning' as const }].slice(-50));
+        reconnectTimeout = setTimeout(connect, 3000);
       };
 
       socket.onerror = () => {
@@ -71,5 +85,5 @@ export function useAiStream() {
     };
   }, []);
 
-  return { data, history };
+  return { data, history, logs };
 }

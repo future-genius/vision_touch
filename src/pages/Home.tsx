@@ -3,7 +3,7 @@ import { ArrowRight, Hand, Zap, Shield, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Home() {
-  const { user, role } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
