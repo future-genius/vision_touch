@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { CameraView } from './pages/CameraView';
 import { GesturesView } from './pages/GesturesView';
 import { AnalyticsView } from './pages/AnalyticsView';
+import { Profile } from './pages/Profile';
 import { Settings } from './pages/Settings';
 import { MobileSync } from './pages/MobileSync';
 import { AdminMonitor } from './pages/AdminMonitor';
@@ -33,8 +34,9 @@ function App() {
         <Route path="camera" element={<CameraView />} />
         <Route path="gestures" element={<GesturesView />} />
         <Route path="analytics" element={<AnalyticsView />} />
-        <Route path="settings" element={<Settings />} />
         <Route path="mobile-sync" element={<MobileSync />} />
+        <Route path="profile" element={<Profile />} />
+        <Route path="settings" element={<Settings />} />
         
         {/* Admin Only Routes */}
         {role === 'admin' && (
