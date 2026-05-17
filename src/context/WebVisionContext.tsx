@@ -124,35 +124,45 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
       setError(null);
       setIsInitializing(true);
 
-      // 1. Instantly request camera permission first to give the user immediate visual feedback!
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: { ideal: 640 }, 
-          height: { ideal: 480 }, 
-          facingMode: 'user' 
-        }
-      });
-      
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
+      // Create a 15-second timeout promise to prevent infinite loading state if WebGL compiles slowly or CDN stalls
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Vision Engine timed out during initialization. Please check your camera permissions, ensure your browser supports WebGL, and refresh.")), 15000)
+      );
 
-      // 2. Initialize MediaPipe ML engine in parallel
-      if (!trackerRef.current) {
-        trackerRef.current = new HandTracker();
-        await trackerRef.current.initialize();
-      }
-      
-      setIsActive(true);
-      setIsInitializing(false);
-      
-      // Start processing loop
-      animationFrameRef.current = requestAnimationFrame(processFrame);
+      const initPromise = (async () => {
+        // 1. Instantly request camera permission first to give the user immediate visual feedback!
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            width: { ideal: 640 }, 
+            height: { ideal: 480 }, 
+            facingMode: 'user' 
+          }
+        });
+        
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
+
+        // 2. Initialize MediaPipe ML engine in parallel
+        if (!trackerRef.current) {
+          trackerRef.current = new HandTracker();
+          await trackerRef.current.initialize();
+        }
+        
+        setIsActive(true);
+        setIsInitializing(false);
+        
+        // Start processing loop
+        animationFrameRef.current = requestAnimationFrame(processFrame);
+      })();
+
+      // Race the camera stream/AI model downloads against the timeout
+      await Promise.race([initPromise, timeoutPromise]);
       
     } catch (err: any) {
-      setError(err.message || "Failed to access camera");
+      setError(err.message || "Failed to access camera or load models");
       setIsInitializing(false);
       console.error(err);
     }
