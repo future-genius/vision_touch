@@ -16,9 +16,20 @@ import { cn } from '../../lib/utils';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-export function Sidebar() {
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  setIsMobileOpen?: (open: boolean) => void;
+}
+
+export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
   const location = useLocation();
   const { role, signOut, user } = useAuth();
+
+  const handleNavClick = () => {
+    if (setIsMobileOpen) {
+      setIsMobileOpen(false);
+    }
+  };
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
@@ -40,7 +51,10 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-white border-r border-accent flex flex-col h-screen fixed left-0 top-0 hidden md:flex">
+    <aside className={cn(
+      "w-64 bg-white border-r border-accent flex flex-col h-screen fixed left-0 top-0 z-40 transition-transform duration-300 md:translate-x-0",
+      isMobileOpen ? "translate-x-0" : "-translate-x-full"
+    )}>
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center p-2 shadow-lg shadow-primary/20 overflow-hidden">
           <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
@@ -59,6 +73,7 @@ export function Sidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={handleNavClick}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold",
                     isActive 
@@ -85,6 +100,7 @@ export function Sidebar() {
                   <Link
                     key={item.path}
                     to={item.path}
+                    onClick={handleNavClick}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold",
                       isActive 
@@ -111,6 +127,7 @@ export function Sidebar() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={handleNavClick}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-semibold",
                     isActive 
@@ -131,6 +148,7 @@ export function Sidebar() {
         {user && (
           <Link 
             to="/dashboard/profile"
+            onClick={handleNavClick}
             className={cn(
               "flex items-center gap-3 px-3 py-2 rounded-2xl transition-all border",
               location.pathname === '/dashboard/profile' 
