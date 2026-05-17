@@ -1,13 +1,18 @@
-import { Camera, Crosshair, Video, VideoOff, Activity, Zap } from 'lucide-react';
+import { Camera, Crosshair, Video, VideoOff, Activity, Zap, RefreshCw } from 'lucide-react';
 import { useAiStream } from '../../hooks/useAiStream';
 import { cn } from '../../lib/utils';
 import { useEffect, useRef, useState } from 'react';
-import { cursorService } from '../../services/cursorService';
 
 export function LiveCameraFeed() {
-  const { data } = useAiStream();
-  const isTracking = data.trackingStatus === 'Active';
+  const { 
+    data, 
+    isConnected, 
+    initializeEngine, 
+    disconnectEngine, 
+    triggerHotReload 
+  } = useAiStream();
   
+  const isTracking = data.trackingStatus === 'Active';
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -23,9 +28,12 @@ export function LiveCameraFeed() {
       }
       setIsCameraActive(true);
       setCameraError(null);
+      
+      // Initialize the Python AI tracking backend
+      initializeEngine();
     } catch (err) {
       console.error("Error accessing webcam:", err);
-      setCameraError("Could not access camera. Please check permissions.");
+      setCameraError("Webcam access failed. Please grant permission.");
     }
   };
 
@@ -37,56 +45,85 @@ export function LiveCameraFeed() {
       videoRef.current.srcObject = null;
     }
     setIsCameraActive(false);
+    
+    // Put Python AI backend on standby
+    disconnectEngine();
   };
 
-  // Auto-init camera
+  // Auto-init camera on load
   useEffect(() => {
     startCamera();
     return () => stopCamera();
   }, []);
 
-  // Real-time Skeleton and Cursor Animation Loop
+  // Real-time Skeletal Rendering Canvas Loop
   useEffect(() => {
-    if (!isCameraActive || !isTracking) return;
+    if (!isCameraActive || !canvasRef.current) return;
 
-    let animationFrame: number;
-    const ctx = canvasRef.current?.getContext('2d');
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-    const render = () => {
-      if (ctx && canvasRef.current) {
-        const { width, height } = canvasRef.current;
-        ctx.clearRect(0, 0, width, height);
+    let animationFrameId: number;
 
-        // Draw Simulated Skeleton
-        // In a real MediaPipe integration, we would loop through data.landmarks
-        if (data.landmarkCount > 0) {
-          ctx.strokeStyle = '#1E3A5F';
-          ctx.lineWidth = 2;
-          ctx.fillStyle = '#16A34A';
+    const drawHand = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          // Simulate some points for visual feedback
-          const points = [
-            { x: width * 0.5, y: height * 0.5 },
-            { x: width * 0.45, y: height * 0.4 },
-            { x: width * 0.55, y: height * 0.4 },
-          ];
+      if (isTracking && data.landmarks && data.landmarks.length === 21) {
+        const pts = data.landmarks;
+        const w = canvas.width;
+        const h = canvas.height;
 
-          points.forEach(p => {
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-            ctx.fill();
-          });
+        // Draw connections
+        ctx.strokeStyle = '#3B82F6'; // Cyber blue line
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-          // Update Cursor Service (Mocking hand-to-cursor mapping)
-          cursorService.updateTarget(0.5 + Math.random() * 0.01, 0.5 + Math.random() * 0.01);
-        }
+        const drawSegment = (indices: number[]) => {
+          ctx.beginPath();
+          ctx.moveTo(pts[indices[0]].x * w, pts[indices[0]].y * h); // direct coordinate mapping (canvas is CSS-mirrored)
+          for (let i = 1; i < indices.length; i++) {
+            ctx.lineTo(pts[indices[i]].x * w, pts[indices[i]].y * h);
+          }
+          ctx.stroke();
+        };
+
+        // MediaPipe skeletal connections
+        drawSegment([0, 1, 2, 3, 4]); // Thumb
+        drawSegment([0, 5, 6, 7, 8]); // Index Finger
+        drawSegment([9, 10, 11, 12]); // Middle Finger
+        drawSegment([13, 14, 15, 16]); // Ring Finger
+        drawSegment([0, 17, 18, 19, 20]); // Pinky
+        drawSegment([5, 9, 13, 17]); // Palm joint boundary
+
+        // Draw Joints
+        pts.forEach((pt, index) => {
+          ctx.beginPath();
+          ctx.arc(pt.x * w, pt.y * h, 7, 0, Math.PI * 2);
+          
+          // Color code special nodes (Wrist = primary, Fingertips = green, others = blue)
+          if (index === 0) {
+            ctx.fillStyle = '#1E3A8A'; // Deep Navy
+          } else if ([4, 8, 12, 16, 20].includes(index)) {
+            ctx.fillStyle = '#22C55E'; // Emerald tips
+          } else {
+            ctx.fillStyle = '#60A5FA'; // Light Blue
+          }
+          ctx.fill();
+          
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        });
       }
-      animationFrame = requestAnimationFrame(render);
+
+      animationFrameId = requestAnimationFrame(drawHand);
     };
 
-    render();
-    return () => cancelAnimationFrame(animationFrame);
-  }, [isCameraActive, isTracking, data.landmarkCount]);
+    drawHand();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isCameraActive, isTracking, data.landmarks]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-accent p-4 md:p-6 flex flex-col h-full overflow-hidden">
@@ -96,12 +133,23 @@ export function LiveCameraFeed() {
             <Camera className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-text-primary">Live AI Interaction</h2>
-            <p className="text-[10px] text-text-secondary uppercase font-bold tracking-wider">Engine: Vision_ResNet_v4</p>
+            <h2 className="text-lg font-bold text-text-primary">Live Neural Telemetry</h2>
+            <p className="text-[10px] text-text-secondary uppercase font-bold tracking-wider">
+              {isConnected ? 'NODE STATUS: CONNECTED' : 'NODE STATUS: DISCONNECTED'}
+            </p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {isConnected && (
+            <button
+              onClick={triggerHotReload}
+              title="Hot reload gesture database mappings"
+              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
           <button 
             onClick={isCameraActive ? stopCamera : startCamera}
             className={cn(
@@ -112,12 +160,12 @@ export function LiveCameraFeed() {
             )}
           >
             {isCameraActive ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-            {isCameraActive ? "Disconnect" : "Initialize Engine"}
+            {isCameraActive ? "Deactivate" : "Initialize Engine"}
           </button>
         </div>
       </div>
 
-      <div className="relative flex-1 bg-background rounded-2xl overflow-hidden border border-accent/50 min-h-[400px] flex items-center justify-center shadow-inner group">
+      <div className="relative flex-1 bg-slate-900 rounded-2xl overflow-hidden min-h-[400px] flex items-center justify-center shadow-inner group">
         {cameraError ? (
           <div className="text-error text-sm font-bold p-8 text-center bg-error/5 rounded-2xl border border-error/10 max-w-xs">
             <Activity className="w-8 h-8 mx-auto mb-3 opacity-50" />
@@ -131,8 +179,8 @@ export function LiveCameraFeed() {
               playsInline 
               muted
               className={cn(
-                "absolute inset-0 w-full h-full object-cover transform -scale-x-100 transition-opacity duration-700",
-                isCameraActive ? "opacity-100" : "opacity-0"
+                "absolute inset-0 w-full h-full object-cover transform -scale-x-100 transition-opacity duration-500",
+                isCameraActive ? "opacity-45" : "opacity-0"
               )}
             />
             
@@ -143,59 +191,67 @@ export function LiveCameraFeed() {
               className="absolute inset-0 w-full h-full object-cover pointer-events-none transform -scale-x-100"
             />
 
-            {/* AI HUD Overlay */}
-            <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between">
+            {/* Live Skeletal Tracking HUD Overlay */}
+            <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between z-10">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
-                    <div className={cn("w-2 h-2 rounded-full", isTracking ? "bg-success animate-pulse" : "bg-error")} />
-                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">Tracking: {data.trackingStatus}</span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-lg border border-white/10">
+                    <div className={cn("w-2 h-2 rounded-full", isTracking ? "bg-success animate-pulse" : "bg-red-500")} />
+                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">
+                      Tracker: {data.trackingStatus}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-lg border border-white/10">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-lg border border-white/10">
                     <Zap className="w-3 h-3 text-amber-400" />
-                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">{data.fps.toFixed(1)} FPS</span>
+                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">{data.fps} FPS</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col items-end gap-2 text-right">
-                   <div className="px-3 py-1 bg-primary/20 backdrop-blur-md rounded border border-primary/30">
-                      <p className="text-[10px] font-bold text-white uppercase tracking-tighter">Inference Time</p>
+                   <div className="px-3 py-1 bg-primary/30 backdrop-blur-md rounded-lg border border-primary/40">
+                      <p className="text-[10px] font-bold text-white/80 uppercase tracking-tighter">Inference Delay</p>
                       <p className="text-sm font-bold text-white">{data.inferenceTimeMs.toFixed(1)}ms</p>
                    </div>
                 </div>
               </div>
 
               {!isCameraActive && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/50 backdrop-blur-md transition-all">
-                  <div className="w-16 h-16 rounded-3xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 mb-4 animate-bounce">
-                    <Camera className="w-8 h-8 text-white" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/75 backdrop-blur-sm transition-all">
+                  <div className="w-16 h-16 rounded-3xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/40 mb-4">
+                    <Camera className="w-8 h-8 text-white animate-pulse" />
                   </div>
-                  <p className="text-primary font-bold text-lg">System Standby</p>
-                  <p className="text-text-secondary text-sm font-medium">Click initialize to start AI inference</p>
+                  <p className="text-white font-bold text-lg">System Off-Duty</p>
+                  <p className="text-slate-400 text-sm font-medium mt-1">Activate the engine to spin up computer vision tracking</p>
                 </div>
               )}
 
               {isCameraActive && isTracking && (
                 <div className="relative w-full h-full flex items-center justify-center">
-                  <Crosshair className="w-20 h-20 text-white/20 animate-pulse" />
+                  <Crosshair className="w-16 h-16 text-white/15 animate-spin" />
+                  
+                  {/* Predicted Gesture Tag Overlay */}
                   {data.gesture !== 'None' && (
-                    <div className="absolute border-2 border-primary w-56 h-72 rounded-2xl bg-primary/5 backdrop-blur-[2px] transition-all duration-300 flex items-start justify-end p-3 shadow-2xl shadow-primary/20 ring-1 ring-white/20">
-                       <div className="bg-primary text-white text-[10px] font-black px-2.5 py-1 rounded-lg shadow-xl uppercase tracking-widest">
-                         {data.gesture} {(data.confidence).toFixed(0)}%
+                    <div className="absolute border border-success/40 w-52 h-64 rounded-2xl bg-success/5 backdrop-blur-[1px] transition-all duration-300 flex items-start justify-end p-3 shadow-2xl ring-1 ring-white/10 animate-pulse">
+                       <div className="bg-success text-white text-[10px] font-black px-2.5 py-1.5 rounded-lg shadow-xl uppercase tracking-widest">
+                         {data.gesture} {data.confidence.toFixed(0)}%
                        </div>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="flex justify-between items-end">
+              <div className="flex justify-between items-end text-white">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Active Stream</p>
-                  <p className="text-xs font-bold text-white">Local Node: PC_DEV_01</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Action Execution</p>
+                  <p className="text-xs font-bold bg-slate-800/80 px-2.5 py-1 rounded border border-white/5 uppercase">
+                    Status: <span className={cn(data.actionState !== 'None' && 'text-success font-black')}>{data.actionState}</span>
+                  </p>
                 </div>
                 <div className="space-y-1 text-right">
-                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Resolution</p>
-                  <p className="text-xs font-bold text-white">1280 x 720 (720p)</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Telemetry Output</p>
+                  <p className="text-xs font-bold bg-slate-800/80 px-2.5 py-1 rounded border border-white/5">
+                    Coord: ({data.cursorX}, {data.cursorY})
+                  </p>
                 </div>
               </div>
             </div>
