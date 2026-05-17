@@ -6,7 +6,7 @@ import { useWebVision } from '../context/WebVisionContext';
 
 export function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isActive, startCamera, stopCamera } = useWebVision();
+  const { isActive, startCamera, stopCamera, error } = useWebVision();
 
   return (
     <div className="flex h-screen bg-background relative">
@@ -42,6 +42,12 @@ export function MainLayout() {
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
+            {error && (
+              <div className="bg-error/10 border border-error/20 text-error p-4 rounded-2xl text-sm font-semibold flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-error animate-ping" />
+                <p>{error}</p>
+              </div>
+            )}
             <Outlet />
           </div>
         </div>

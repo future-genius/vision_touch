@@ -40,8 +40,18 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
   // Initialize the video element off-screen to capture stream
   useEffect(() => {
     const video = document.createElement('video');
-    video.style.display = 'none';
+    // Mobile browsers strictly require muted=true to programmatically play video
+    video.muted = true;
     video.playsInline = true;
+    // Position off-screen instead of display:none so mobile Safari doesn't throttle the frames
+    video.style.position = 'fixed';
+    video.style.top = '-9999px';
+    video.style.left = '-9999px';
+    video.style.width = '1px';
+    video.style.height = '1px';
+    video.style.opacity = '0';
+    video.style.pointerEvents = 'none';
+    
     document.body.appendChild(video);
     videoRef.current = video;
 
@@ -118,7 +128,11 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
 
       // Request Camera
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480, facingMode: 'user' }
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 }, 
+          facingMode: 'user' 
+        }
       });
       
       streamRef.current = stream;

@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 
 export function Home() {
   const { user } = useAuth();
-  const { isActive, startCamera, stopCamera } = useWebVision();
+  const { isActive, startCamera, stopCamera, error } = useWebVision();
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -53,6 +53,13 @@ export function Home() {
               {isActive ? 'WASM Engine Running' : 'Client-Side Engine Ready'}
             </span>
           </div>
+          
+          {error && (
+            <div className="bg-error/10 border border-error/20 text-error p-4 rounded-2xl text-sm font-semibold flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-error animate-ping" />
+              <p>{error}</p>
+            </div>
+          )}
           <h1 className="text-6xl lg:text-8xl font-black text-primary leading-[0.9] tracking-tighter">
             Your Hands <br />
             <span className="text-text-secondary/20">Are the Controller.</span>
