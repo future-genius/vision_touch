@@ -46,7 +46,7 @@ class WsServer:
         for client in disconnected:
             await self.unregister(client)
 
-    async def handle_message(self, websocket, path):
+    async def handle_message(self, websocket, path=None):
         await self.register(websocket)
         try:
             # Heartbeat check loop inside message handler
