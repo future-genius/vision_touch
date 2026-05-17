@@ -1,24 +1,41 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/navigation/Sidebar';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Camera, CameraOff } from 'lucide-react';
+import { useWebVision } from '../context/WebVisionContext';
 
 export function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isActive, startCamera, stopCamera } = useWebVision();
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background relative">
       <Sidebar isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
       
       <main className="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden">
-        {/* Mobile Header */}
-        <header className="md:hidden flex items-center justify-between p-4 bg-white border-b border-accent z-20">
-          <h1 className="text-lg font-black text-primary tracking-tighter uppercase">VisionTouch</h1>
+        {/* Header */}
+        <header className="flex items-center justify-between p-4 bg-white border-b border-accent z-20">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 -ml-2 text-primary hover:bg-background rounded-lg transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+            <h1 className="text-lg font-black text-primary tracking-tighter uppercase md:hidden">VisionTouch</h1>
+            <h1 className="text-lg font-black text-primary tracking-tighter uppercase hidden md:block">Dashboard Workspace</h1>
+          </div>
+
           <button 
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-2 -mr-2 text-primary hover:bg-background rounded-lg transition-colors"
+            onClick={isActive ? stopCamera : startCamera}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              isActive 
+                ? 'bg-success/10 text-success border border-success/20' 
+                : 'bg-primary text-white shadow-lg hover:bg-primary/90'
+            }`}
           >
-            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+            {isActive ? 'Engine Active' : 'Start Engine'}
           </button>
         </header>
         

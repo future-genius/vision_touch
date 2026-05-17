@@ -15,6 +15,8 @@ import { Login } from './pages/Login';
 import { Home } from './pages/Home';
 import { MobileRemote } from './pages/MobileRemote';
 import { useAuth } from './context/AuthContext';
+import { WebVisionProvider } from './context/WebVisionContext';
+import { VirtualCursor } from './components/VirtualCursor';
 
 function App() {
   const { user, loading, role } = useAuth();
@@ -28,33 +30,36 @@ function App() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <Login />} />
-      <Route path="/remote/:token" element={<MobileRemote />} />
-      
-      <Route path="/dashboard" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
-        <Route index element={<Dashboard />} />
-        <Route path="camera" element={<CameraView />} />
-        <Route path="gestures" element={<GesturesView />} />
-        <Route path="analytics" element={<AnalyticsView />} />
-        <Route path="mobile-sync" element={<MobileSync />} />
-        <Route path="profile" element={<Profile />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="cloud-sync" element={<CloudSync />} />
-        <Route path="about" element={<About />} />
+    <WebVisionProvider>
+      <VirtualCursor />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+        <Route path="/remote/:token" element={<MobileRemote />} />
         
-        {/* Admin Only Routes */}
-        {role === 'admin' && (
-          <>
-            <Route path="admin" element={<AdminMonitor />} />
-            <Route path="datasets" element={<DatasetManagement />} />
-          </>
-        )}
-      </Route>
-      
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+        <Route path="/dashboard" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
+          <Route index element={<Dashboard />} />
+          <Route path="camera" element={<CameraView />} />
+          <Route path="gestures" element={<GesturesView />} />
+          <Route path="analytics" element={<AnalyticsView />} />
+          <Route path="mobile-sync" element={<MobileSync />} />
+          <Route path="profile" element={<Profile />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="cloud-sync" element={<CloudSync />} />
+          <Route path="about" element={<About />} />
+          
+          {/* Admin Only Routes */}
+          {role === 'admin' && (
+            <>
+              <Route path="admin" element={<AdminMonitor />} />
+              <Route path="datasets" element={<DatasetManagement />} />
+            </>
+          )}
+        </Route>
+        
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </WebVisionProvider>
   );
 }
 

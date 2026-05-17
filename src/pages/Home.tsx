@@ -1,54 +1,83 @@
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, Zap, Shield, Globe } from 'lucide-react';
+import { useWebVision } from '../context/WebVisionContext';
+import { ArrowRight, Zap, Shield, Globe, Camera, CameraOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Home() {
   const { user } = useAuth();
+  const { isActive, startCamera, stopCamera } = useWebVision();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center p-2 shadow-lg shadow-primary/20 overflow-hidden">
             <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
           </div>
-          <span className="text-2xl font-black text-primary tracking-tighter uppercase">VisionTouch</span>
+          <span className="text-2xl font-black text-primary tracking-tighter uppercase hidden sm:block">VisionTouch</span>
         </Link>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={isActive ? stopCamera : startCamera}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              isActive 
+                ? 'bg-success/10 text-success border border-success/20' 
+                : 'bg-primary/10 text-primary hover:bg-primary/20'
+            }`}
+          >
+            {isActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+            <span className="hidden sm:inline">{isActive ? 'Engine Active' : 'Enable Gestures'}</span>
+          </button>
+          
           {!user ? (
             <Link to="/auth" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20">
-              Get Started
+              Log In
             </Link>
           ) : (
             <Link to="/dashboard" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20 flex items-center gap-2">
-              Open Dashboard <ArrowRight className="w-4 h-4" />
+              Dashboard <ArrowRight className="w-4 h-4 hidden sm:block" />
             </Link>
           )}
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="max-w-7xl mx-auto px-6 pt-20 pb-32 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+      <section className="max-w-7xl mx-auto px-6 pt-20 pb-32 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center relative z-10">
         <div className="space-y-8">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary/5 rounded-full border border-primary/10">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="text-[10px] font-black text-primary uppercase tracking-widest">Real-Time Engine Active</span>
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border transition-colors ${
+             isActive ? 'bg-success/10 border-success/20' : 'bg-primary/5 border-primary/10'
+          }`}>
+            <span className={`w-2 h-2 rounded-full animate-pulse ${isActive ? 'bg-success' : 'bg-primary'}`} />
+            <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-success' : 'text-primary'}`}>
+              {isActive ? 'WASM Engine Running' : 'Client-Side Engine Ready'}
+            </span>
           </div>
           <h1 className="text-6xl lg:text-8xl font-black text-primary leading-[0.9] tracking-tighter">
             Your Hands <br />
             <span className="text-text-secondary/20">Are the Controller.</span>
           </h1>
           <p className="text-xl text-text-secondary max-w-lg leading-relaxed">
-            The world's most advanced AI gesture interface. Connect your camera and control your workstation with zero-latency neural tracking.
+            The world's most advanced AI gesture interface. Connect your camera and control the entire web app with zero-latency neural tracking directly in your browser.
           </p>
-          <div className="flex gap-4">
-            <Link to={user ? "/dashboard" : "/auth"} className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-2xl hover:shadow-primary/30 transition-all flex items-center gap-3">
-              {user ? "Back to Dashboard" : "Start Controlling Now"} <ArrowRight className="w-5 h-5" />
-            </Link>
-            <button className="px-8 py-4 rounded-2xl font-bold text-lg border border-accent hover:bg-white transition-all">
-              Documentation
+          <div className="flex flex-col sm:flex-row gap-4">
+            <button 
+              onClick={isActive ? stopCamera : startCamera}
+              className={`px-8 py-4 rounded-2xl font-bold text-lg transition-all flex items-center justify-center gap-3 ${
+                isActive
+                  ? 'bg-success text-white hover:bg-success/90 shadow-xl shadow-success/30'
+                  : 'bg-primary text-white hover:scale-105 shadow-2xl shadow-primary/30'
+              }`}
+            >
+              {isActive ? (
+                <>Tracking Active <CameraOff className="w-5 h-5" /></>
+              ) : (
+                <>Start Tracking Now <Camera className="w-5 h-5" /></>
+              )}
             </button>
+            <Link to={user ? "/dashboard" : "/auth"} className="px-8 py-4 rounded-2xl font-bold text-lg border border-accent hover:bg-white transition-all text-center">
+              Go to Dashboard
+            </Link>
           </div>
         </div>
 
