@@ -1,12 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Save, RefreshCw, AlertTriangle, MonitorSmartphone, Wifi, Sliders, Camera } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { Save, Wifi, Sliders, Camera } from 'lucide-react';
 
 export function Settings() {
-  const { role } = useAuth();
-  const [sensitivity, setSensitivity] = useState(50);
-  const [smoothing, setSmoothing] = useState(70);
-  const [deadzone, setDeadzone] = useState(10);
   const [customWsUrl, setCustomWsUrl] = useState('');
 
   useEffect(() => {
@@ -25,7 +20,7 @@ export function Settings() {
   };
 
   const handleSave = () => {
-    console.log({ sensitivity, smoothing, deadzone });
+    console.log("Saved Settings");
   };
 
   return (
