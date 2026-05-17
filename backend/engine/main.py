@@ -89,10 +89,30 @@ class VisionEngine:
             return
             
         print("[Engine] Initializing CV2 camera capture stream...")
-        self.cap = cv2.VideoCapture(0)
-        if not self.cap or not self.cap.isOpened():
-            print("\n[Engine] ❌ ERROR: Camera device 0 could not be opened!")
-            print("[Engine] Please ensure your webcam is connected and NOT in use by Zoom, Teams, Chrome, or another Python script.\n")
+        
+        # Auto-detect the first working hardware webcam index (0 to 3)
+        self.cap = None
+        working_index = None
+        
+        for index in [0, 1, 2, 3]:
+            try:
+                # Try DirectShow first on Windows for instant response, fall back to default
+                cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
+                if cap and cap.isOpened():
+                    # Attempt a test frame read to ensure it's not a dummy/virtual/locked device
+                    success, test_frame = cap.read()
+                    if success and test_frame is not None:
+                        print(f"[Engine] Camera index {index} verified successfully! (Frame shape: {test_frame.shape})")
+                        self.cap = cap
+                        working_index = index
+                        break
+                    cap.release()
+            except Exception as cam_err:
+                print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
+                
+        if not self.cap:
+            print("\n[Engine] ❌ ERROR: No active, working webcam could be opened!")
+            print("[Engine] Please ensure your web camera is connected, drivers are active, and it is NOT in use by Zoom/Teams/Chrome.\n")
             return
             
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
@@ -103,7 +123,7 @@ class VisionEngine:
         self.capture_thread = threading.Thread(target=self.run_capture_loop)
         self.capture_thread.daemon = True
         self.capture_thread.start()
-        print("[Engine] Camera thread started successfully.")
+        print(f"[Engine] Camera thread started successfully on device index {working_index}.")
 
     def stop_capture(self):
         self.is_running = False
