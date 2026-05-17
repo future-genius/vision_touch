@@ -9,8 +9,11 @@ import { Settings } from './pages/Settings';
 import { MobileSync } from './pages/MobileSync';
 import { AdminMonitor } from './pages/AdminMonitor';
 import { DatasetManagement } from './pages/DatasetManagement';
+import { CloudSync } from './pages/CloudSync';
+import { About } from './pages/About';
 import { Login } from './pages/Login';
 import { Home } from './pages/Home';
+import { MobileRemote } from './pages/MobileRemote';
 import { useAuth } from './context/AuthContext';
 
 function App() {
@@ -28,6 +31,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+      <Route path="/remote/:token" element={<MobileRemote />} />
       
       <Route path="/dashboard" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
         <Route index element={<Dashboard />} />
@@ -37,6 +41,8 @@ function App() {
         <Route path="mobile-sync" element={<MobileSync />} />
         <Route path="profile" element={<Profile />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="cloud-sync" element={<CloudSync />} />
+        <Route path="about" element={<About />} />
         
         {/* Admin Only Routes */}
         {role === 'admin' && (

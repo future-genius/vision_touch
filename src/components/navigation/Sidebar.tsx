@@ -5,6 +5,8 @@ import {
   BarChart2, 
   Settings, 
   Smartphone, 
+  Cloud,
+  Info,
   ShieldCheck,
   Database,
   LogOut,
@@ -33,6 +35,8 @@ export function Sidebar() {
   const settingsItems = [
     { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
     { icon: Smartphone, label: 'Mobile Sync', path: '/dashboard/mobile-sync' },
+    { icon: Cloud, label: 'Cloud Sync', path: '/dashboard/cloud-sync' },
+    { icon: Info, label: 'About', path: '/dashboard/about' },
   ];
 
   return (

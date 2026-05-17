@@ -71,7 +71,7 @@ export function MobileSync() {
             <div className="w-64 h-64 border-4 border-dashed border-primary/20 rounded-3xl flex flex-col items-center justify-center bg-background p-4 overflow-hidden">
               {/* Real Session Token QR Code generated dynamically */}
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=visiontouch://sync/${Math.random().toString(36).substr(2, 9)}&color=0f172a&bgcolor=f8fafc`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${window.location.origin}/remote/${Math.random().toString(36).substr(2, 9)}&color=0f172a&bgcolor=f8fafc`}
                 alt="Session QR Code"
                 className="w-48 h-48 rounded-xl opacity-90 mix-blend-multiply"
               />
