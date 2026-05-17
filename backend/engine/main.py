@@ -115,9 +115,6 @@ class VisionEngine:
             print("[Engine] Please ensure your web camera is connected, drivers are active, and it is NOT in use by Zoom/Teams/Chrome.\n")
             return
             
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        
         self.is_running = True
         # Run capture loop in an independent background thread to keep WebSocket server responsive
         self.capture_thread = threading.Thread(target=self.run_capture_loop)
@@ -151,9 +148,14 @@ class VisionEngine:
         last_time = time.time()
         
         consecutive_failures = 0
+        frame_counter = 0
+        
         while self.is_running and self.cap:
             start_frame_time = time.time()
+            
+            # Prof: Read Frame
             success, frame = self.cap.read()
+            t_read = (time.time() - start_frame_time) * 1000
             
             if not success:
                 consecutive_failures += 1
@@ -162,21 +164,28 @@ class VisionEngine:
                 time.sleep(0.01)
                 continue
             consecutive_failures = 0
+            frame_counter += 1
 
             # Mirror frame for intuitive local control
             frame = cv2.flip(frame, 1)
             
-            # 1. MediaPipe Tracking
+            # Prof: MediaPipe Tracking
+            t_track_start = time.time()
             landmarks, tracking_status, raw_landmarks = self.tracker.process_frame(frame)
+            t_track = (time.time() - t_track_start) * 1000
             
             gesture_key = "None"
             confidence = 0.0
             cursor_x, cursor_y = self.cursor.prev_x, self.cursor.prev_y
             action_executed_name = "None"
+            t_classify = 0.0
+            t_action = 0.0
             
             if tracking_status == "Active" and raw_landmarks:
-                # 2. Gesture Prediction (Heuristic + Custom Templates)
+                # Prof: Gesture Prediction (Heuristic + Custom Templates)
+                t_classify_start = time.time()
                 gesture_key, confidence = self.classifier.classify(raw_landmarks.landmark)
+                t_classify = (time.time() - t_classify_start) * 1000
                 
                 # Fetch corresponding mapping from local registry
                 active_mapping = None
@@ -193,7 +202,8 @@ class VisionEngine:
                 if gesture_key != 'palm_open':
                     cursor_x, cursor_y = self.cursor.move_to(index_tip.x, index_tip.y)
                 
-                # 3. Action Mapping & Execution
+                # Prof: Action Mapping & Execution
+                t_action_start = time.time()
                 if active_mapping:
                     action_type = active_mapping.get("action_type")
                     action_params = active_mapping.get("action_parameters", {})
@@ -229,6 +239,7 @@ class VisionEngine:
                                 }))
                         except Exception as e:
                             print(f"[Engine] Clusterer error: {e}")
+                t_action = (time.time() - t_action_start) * 1000
                             
                 # 5. Labeled Dataset Feeding Mode (1 sample per 300ms limit to prevent database overload)
                 if self.feed_mode and self.feed_gesture_key:
@@ -260,6 +271,8 @@ class VisionEngine:
             # Map gesture key to human readable name
             gesture_name = self.classifier.gesture_names.get(gesture_key, gesture_key)
 
+            # Prof: Broadcast Telemetry
+            t_broadcast_start = time.time()
             # 6. Stream Live Skeletal Landmarks Telemetry to WebSocket
             payload = {
                 "type": "hand_landmarks",
@@ -280,6 +293,11 @@ class VisionEngine:
                 }
             }
             loop.run_until_complete(self.ws.broadcast(payload))
+            t_broadcast = (time.time() - t_broadcast_start) * 1000
+
+            # Output latency profiling to console every 30 frames under debug mode
+            if self.debug_mode and frame_counter % 30 == 0:
+                print(f"[Profiler] Loop: {inference_time:.1f}ms | Capture: {t_read:.1f}ms | Tracking: {t_track:.1f}ms | ML: {t_classify:.1f}ms | Action: {t_action:.1f}ms | Broadcast: {t_broadcast:.1f}ms")
 
             # 7. Local OpenCV Window (only if debug mode is active)
             if self.debug_mode:
