@@ -1,4 +1,4 @@
-import { Smartphone, Laptop, QrCode, ShieldCheck, Zap, Globe } from 'lucide-react';
+import { Smartphone, Laptop, ShieldCheck, Zap, Globe } from 'lucide-react';
 
 export function MobileSync() {
   return (

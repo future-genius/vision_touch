@@ -5,8 +5,6 @@ import {
   BarChart2, 
   Settings, 
   Smartphone, 
-  Cloud, 
-  Info,
   ShieldCheck,
   Database,
   LogOut,
