@@ -10,6 +10,7 @@ interface CursorState {
 
 interface WebVisionContextType {
   isActive: boolean;
+  isInitializing: boolean;
   cursor: CursorState;
   startCamera: () => Promise<void>;
   stopCamera: () => void;
@@ -23,6 +24,7 @@ const HISTORY_SIZE = 5;
 
 export function WebVisionProvider({ children }: { children: ReactNode }) {
   const [isActive, setIsActive] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [cursor, setCursor] = useState<CursorState>({ x: 0, y: 0, isPinching: false, isVisible: false });
@@ -120,13 +122,9 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
   const startCamera = async () => {
     try {
       setError(null);
-      // Initialize Tracker
-      if (!trackerRef.current) {
-        trackerRef.current = new HandTracker();
-        await trackerRef.current.initialize();
-      }
+      setIsInitializing(true);
 
-      // Request Camera
+      // 1. Instantly request camera permission first to give the user immediate visual feedback!
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           width: { ideal: 640 }, 
@@ -140,14 +138,22 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
       }
+
+      // 2. Initialize MediaPipe ML engine in parallel
+      if (!trackerRef.current) {
+        trackerRef.current = new HandTracker();
+        await trackerRef.current.initialize();
+      }
       
       setIsActive(true);
+      setIsInitializing(false);
       
       // Start processing loop
       animationFrameRef.current = requestAnimationFrame(processFrame);
       
     } catch (err: any) {
       setError(err.message || "Failed to access camera");
+      setIsInitializing(false);
       console.error(err);
     }
   };
@@ -181,7 +187,7 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <WebVisionContext.Provider value={{ isActive, cursor, startCamera, stopCamera, error }}>
+    <WebVisionContext.Provider value={{ isActive, isInitializing, cursor, startCamera, stopCamera, error }}>
       {children}
     </WebVisionContext.Provider>
   );

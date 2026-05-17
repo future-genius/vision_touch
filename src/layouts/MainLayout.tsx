@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/navigation/Sidebar';
-import { Menu, X, Camera, CameraOff } from 'lucide-react';
+import { Menu, X, Camera, CameraOff, Loader2 } from 'lucide-react';
 import { useWebVision } from '../context/WebVisionContext';
 
 export function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isActive, startCamera, stopCamera, error } = useWebVision();
+  const { isActive, isInitializing, startCamera, stopCamera, error } = useWebVision();
 
   return (
     <div className="flex h-screen bg-background relative">
@@ -28,14 +28,26 @@ export function MainLayout() {
 
           <button 
             onClick={isActive ? stopCamera : startCamera}
+            disabled={isInitializing}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-              isActive 
-                ? 'bg-success/10 text-success border border-success/20' 
-                : 'bg-primary text-white shadow-lg hover:bg-primary/90'
+              isInitializing
+                ? 'bg-primary/20 text-primary/50 cursor-wait'
+                : isActive 
+                  ? 'bg-success/10 text-success border border-success/20' 
+                  : 'bg-primary text-white shadow-lg hover:bg-primary/90'
             }`}
           >
-            {isActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-            {isActive ? 'Gestures Active' : 'Enable Gestures'}
+            {isInitializing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Initializing...
+              </>
+            ) : (
+              <>
+                {isActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+                {isActive ? 'Gestures Active' : 'Enable Gestures'}
+              </>
+            )}
           </button>
         </header>
         
