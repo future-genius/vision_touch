@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Smartphone, Laptop, ShieldCheck, Zap, Globe, Link as LinkIcon } from 'lucide-react';
+import { Smartphone, Laptop, ShieldCheck, Zap, Link as LinkIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function MobileSync() {
