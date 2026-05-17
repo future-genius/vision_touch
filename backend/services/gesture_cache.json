@@ -1,0 +1,44 @@
+[
+    {
+        "gesture_id": "18578752-3401-4031-9a6a-74613d85de62",
+        "gesture_name": "Index Pointer",
+        "gesture_key": "index_pointer",
+        "gesture_icon": "MousePointer2",
+        "confidence_threshold": 0.65,
+        "action_id": "5cd49d7d-ebcb-45c9-b549-ef4be57f76f4",
+        "action_name": "Pointer Movement",
+        "action_type": "move",
+        "action_parameters": {},
+        "execution_mode": "continuous",
+        "sensitivity": 1.5,
+        "cooldown": 0.2
+    },
+    {
+        "gesture_id": "2afddfa2-c65a-419f-a8f9-5c2ad1f06daf",
+        "gesture_name": "Pinch / Click",
+        "gesture_key": "pinch_click",
+        "gesture_icon": "MousePointerClick",
+        "confidence_threshold": 0.7,
+        "action_id": "ef85c011-f69c-430c-a906-faf58d42fe8b",
+        "action_name": "Trigger Mouse Click",
+        "action_type": "left_click",
+        "action_parameters": {},
+        "execution_mode": "instant",
+        "sensitivity": 1,
+        "cooldown": 0.4
+    },
+    {
+        "gesture_id": "f6cd00b8-b334-47fd-943e-81dbb03e17e4",
+        "gesture_name": "Two Finger Spread",
+        "gesture_key": "two_finger_spread",
+        "gesture_icon": "Move",
+        "confidence_threshold": 0.6,
+        "action_id": "6215846b-933e-47c6-b332-50eda82934ad",
+        "action_name": "Drag and Drop Action",
+        "action_type": "drag",
+        "action_parameters": {},
+        "execution_mode": "continuous",
+        "sensitivity": 1.2,
+        "cooldown": 0.3
+    }
+]
