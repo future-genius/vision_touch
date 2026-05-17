@@ -13,37 +13,19 @@ export function LiveCameraFeed() {
   } = useAiStream();
   
   const isTracking = data.trackingStatus === 'Active';
-  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { width: 1280, height: 720, facingMode: "user" } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-      setIsCameraActive(true);
-      setCameraError(null);
-      
-      // Initialize the Python AI tracking backend
-      initializeEngine();
-    } catch (err) {
-      console.error("Error accessing webcam:", err);
-      setCameraError("Webcam access failed. Please grant permission.");
-    }
+  const startCamera = () => {
+    setIsCameraActive(true);
+    setCameraError(null);
+    
+    // Initialize the Python AI tracking backend
+    initializeEngine();
   };
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
     setIsCameraActive(false);
     
     // Put Python AI backend on standby
@@ -82,7 +64,7 @@ export function LiveCameraFeed() {
 
         const drawSegment = (indices: number[]) => {
           ctx.beginPath();
-          ctx.moveTo(pts[indices[0]].x * w, pts[indices[0]].y * h); // direct coordinate mapping (canvas is CSS-mirrored)
+          ctx.moveTo(pts[indices[0]].x * w, pts[indices[0]].y * h);
           for (let i = 1; i < indices.length; i++) {
             ctx.lineTo(pts[indices[i]].x * w, pts[indices[i]].y * h);
           }
@@ -165,7 +147,7 @@ export function LiveCameraFeed() {
         </div>
       </div>
 
-      <div className="relative flex-1 bg-slate-900 rounded-2xl overflow-hidden min-h-[400px] flex items-center justify-center shadow-inner group">
+      <div className="relative flex-1 bg-slate-950 rounded-2xl overflow-hidden min-h-[400px] flex items-center justify-center shadow-inner group">
         {cameraError ? (
           <div className="text-error text-sm font-bold p-8 text-center bg-error/5 rounded-2xl border border-error/10 max-w-xs">
             <Activity className="w-8 h-8 mx-auto mb-3 opacity-50" />
@@ -173,16 +155,33 @@ export function LiveCameraFeed() {
           </div>
         ) : (
           <>
-            <video 
-              ref={videoRef}
-              autoPlay 
-              playsInline 
-              muted
-              className={cn(
-                "absolute inset-0 w-full h-full object-cover transform -scale-x-100 transition-opacity duration-500",
-                isCameraActive ? "opacity-45" : "opacity-0"
-              )}
-            />
+            {/* Premium Animated High-Tech Neural Grid Background */}
+            {isCameraActive && (
+              <div className="absolute inset-0 bg-slate-950 overflow-hidden pointer-events-none">
+                {/* Radial Grid */}
+                <div 
+                  className="absolute inset-0 opacity-20"
+                  style={{
+                    backgroundImage: 'radial-gradient(circle, #3B82F6 1.5px, transparent 1.5px)',
+                    backgroundSize: '32px 32px'
+                  }}
+                />
+                
+                {/* Animated Horizontal Scanline Sweep */}
+                <div 
+                  className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-40 shadow-[0_0_12px_#3B82F6]" 
+                  style={{
+                    animation: 'scan 4s linear infinite',
+                    top: '0%'
+                  }}
+                />
+
+                {/* Cyber Target Rings */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 border border-primary/10 rounded-full animate-[spin_30s_linear_infinite]" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-dashed border-primary/20 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-primary/5 rounded-full" />
+              </div>
+            )}
             
             <canvas 
               ref={canvasRef}
