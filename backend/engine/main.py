@@ -90,6 +90,11 @@ class VisionEngine:
             
         print("[Engine] Initializing CV2 camera capture stream...")
         self.cap = cv2.VideoCapture(0)
+        if not self.cap or not self.cap.isOpened():
+            print("\n[Engine] ❌ ERROR: Camera device 0 could not be opened!")
+            print("[Engine] Please ensure your webcam is connected and NOT in use by Zoom, Teams, Chrome, or another Python script.\n")
+            return
+            
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         
@@ -125,13 +130,18 @@ class VisionEngine:
         fps = 0
         last_time = time.time()
         
+        consecutive_failures = 0
         while self.is_running and self.cap:
             start_frame_time = time.time()
             success, frame = self.cap.read()
             
             if not success:
+                consecutive_failures += 1
+                if consecutive_failures % 150 == 0:
+                    print("[Engine] ⚠️ Warning: Failed to read frame from webcam consecutively. Device stream may have stalled.")
                 time.sleep(0.01)
                 continue
+            consecutive_failures = 0
 
             # Mirror frame for intuitive local control
             frame = cv2.flip(frame, 1)
