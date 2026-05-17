@@ -154,6 +154,9 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setData(prev => ({ ...prev, trackingStatus: 'Idle' }));
         addLog('Connected to local VisionTouch AI backend node', 'success');
 
+        // Auto-initialize the neural engine once socket is open
+        socket.send(JSON.stringify({ type: 'initialize_engine', data: {} }));
+
         // Start heartbeat ping
         pingIntervalRef.current = setInterval(() => {
           sendEvent('ping');

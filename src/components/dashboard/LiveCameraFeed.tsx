@@ -32,11 +32,21 @@ export function LiveCameraFeed() {
     disconnectEngine();
   };
 
-  // Auto-init camera on load
+  // Sync camera UI state with connection status
   useEffect(() => {
-    startCamera();
-    return () => stopCamera();
-  }, []);
+    if (isConnected) {
+      setIsCameraActive(true);
+    } else {
+      setIsCameraActive(false);
+    }
+  }, [isConnected]);
+
+  // Clean up on component unmount
+  useEffect(() => {
+    return () => {
+      disconnectEngine();
+    };
+  }, [disconnectEngine]);
 
   // Real-time Skeletal Rendering Canvas Loop
   useEffect(() => {
