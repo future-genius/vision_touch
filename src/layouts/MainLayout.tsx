@@ -35,7 +35,7 @@ export function MainLayout() {
             }`}
           >
             {isActive ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-            {isActive ? 'Engine Active' : 'Start Engine'}
+            {isActive ? 'Gestures Active' : 'Enable Gestures'}
           </button>
         </header>
         
