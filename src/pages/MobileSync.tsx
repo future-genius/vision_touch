@@ -1,6 +1,18 @@
-import { Smartphone, Laptop, ShieldCheck, Zap, Globe } from 'lucide-react';
+import { useState } from 'react';
+import { Smartphone, Laptop, ShieldCheck, Zap, Globe, Link as LinkIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export function MobileSync() {
+  const [token] = useState(() => Math.random().toString(36).substr(2, 9));
+  const [inputToken, setInputToken] = useState('');
+  const navigate = useNavigate();
+
+  const handleManualConnect = () => {
+    if (inputToken.trim()) {
+      navigate(`/remote/${inputToken.trim()}`);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-end">
@@ -68,30 +80,41 @@ export function MobileSync() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)]" />
           
           <div className="relative mb-8 p-4 bg-white rounded-[40px] shadow-2xl">
-            <div className="w-64 h-64 border-4 border-dashed border-primary/20 rounded-3xl flex flex-col items-center justify-center bg-background p-4 overflow-hidden">
+            <div className="w-64 h-64 border-4 border-dashed border-primary/20 rounded-3xl flex flex-col items-center justify-center bg-background p-4 overflow-hidden relative">
               {/* Real Session Token QR Code generated dynamically */}
               <img 
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${window.location.origin}/remote/${Math.random().toString(36).substr(2, 9)}&color=0f172a&bgcolor=f8fafc`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${window.location.origin}/remote/${token}&color=0f172a&bgcolor=f8fafc`}
                 alt="Session QR Code"
                 className="w-48 h-48 rounded-xl opacity-90 mix-blend-multiply"
               />
             </div>
             <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl whitespace-nowrap">
-               Scan to Link
+               Scan with Camera
             </div>
           </div>
 
-          <h2 className="text-3xl font-black tracking-tighter mb-4">Pair Your Device</h2>
-          <p className="text-white/70 text-sm max-w-xs mb-8">
-            Open the <b>VisionTouch PWA</b> on your phone and scan the secure code to sync gestures.
+          <h2 className="text-3xl font-black tracking-tighter mb-2">Pair Your Device</h2>
+          <p className="text-white/70 text-sm max-w-xs mb-4">
+            Open your phone's <b>native Camera app</b> to scan, or manually enter the pairing code below if you are already on the PWA.
           </p>
+          <div className="bg-white/10 px-4 py-2 rounded-xl mb-8 font-mono tracking-widest font-black text-xl">
+             {token}
+          </div>
 
-          <div className="flex gap-4">
-             <button className="bg-white text-primary px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all">
-                Download PWA
-             </button>
-             <button className="bg-primary border border-white/20 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-2">
-                <Globe className="w-4 h-4" /> Global Link
+          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xs relative z-10">
+             <input 
+               type="text" 
+               placeholder="Enter pairing code..." 
+               value={inputToken}
+               onChange={(e) => setInputToken(e.target.value)}
+               className="bg-white/10 border border-white/20 text-white placeholder-white/40 px-4 py-3 rounded-2xl font-mono text-center focus:outline-none focus:bg-white/20 transition-all flex-1"
+             />
+             <button 
+               onClick={handleManualConnect}
+               disabled={!inputToken}
+               className="bg-white text-primary px-6 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+             >
+                <LinkIcon className="w-4 h-4" /> Link
              </button>
           </div>
         </div>
