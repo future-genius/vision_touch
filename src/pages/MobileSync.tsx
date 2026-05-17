@@ -68,18 +68,15 @@ export function MobileSync() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent)]" />
           
           <div className="relative mb-8 p-4 bg-white rounded-[40px] shadow-2xl">
-            <div className="w-64 h-64 border-4 border-dashed border-primary/20 rounded-3xl flex items-center justify-center bg-background p-4">
-              {/* Custom Neural QR Placeholder */}
-              <div className="relative w-full h-full bg-primary/5 rounded-2xl overflow-hidden grid grid-cols-4 grid-rows-4 gap-2">
-                 {[...Array(16)].map((_, i) => (
-                   <div key={i} className={`rounded-sm ${Math.random() > 0.5 ? 'bg-primary' : 'bg-transparent'}`} />
-                 ))}
-                 <div className="absolute inset-0 flex items-center justify-center">
-                    <QrCode className="w-20 h-20 text-primary opacity-20" />
-                 </div>
-              </div>
+            <div className="w-64 h-64 border-4 border-dashed border-primary/20 rounded-3xl flex flex-col items-center justify-center bg-background p-4 overflow-hidden">
+              {/* Real Session Token QR Code generated dynamically */}
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=visiontouch://sync/${Math.random().toString(36).substr(2, 9)}&color=0f172a&bgcolor=f8fafc`}
+                alt="Session QR Code"
+                className="w-48 h-48 rounded-xl opacity-90 mix-blend-multiply"
+              />
             </div>
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl">
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-success text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl whitespace-nowrap">
                Scan to Link
             </div>
           </div>

@@ -16,8 +16,8 @@ class CursorController:
         # Configuration parameters
         self.sensitivity = 1.6
         self.smoothing = 0.65  # 0 to 1: higher means smoother but slower
-        self.dead_zone = 3     # pixel movement threshold to filter out tiny jitters
-        self.jitter_window_size = 5
+        self.dead_zone = 6     # pixel movement threshold to filter out tiny jitters
+        self.jitter_window_size = 8
         
         # Calibration bounds (normalized coords to map to screen size)
         # Allows full-screen navigation without needing to reach camera boundaries
@@ -92,20 +92,36 @@ class CursorController:
         dist = (dx**2 + dy**2)**0.5
         
         # Ignore micro-movements within the dead zone to keep cursor steady
+        # A larger deadzone helps significantly when trying to click small targets
         if dist < self.dead_zone:
             return self.prev_x, self.prev_y
             
         # Velocity-based dynamic factor: faster movements get less smoothing (more responsive)
         # Slower movements get high smoothing (extremely precise for clicking)
         velocity = dist / dt
-        adaptive_smoothing = self.smoothing
-        if velocity > 500: # Fast move
-            adaptive_smoothing = max(0.15, self.smoothing * 0.4) # decrease smoothing = snap faster
+        
+        # Smooth interpolation of adaptive smoothing based on velocity
+        # low velocity (< 100) -> highly smoothed (0.8)
+        # high velocity (> 800) -> very responsive (0.2)
+        base_smoothing = self.smoothing
+        if velocity < 150:
+            adaptive_smoothing = min(0.85, base_smoothing * 1.3)
+        elif velocity > 800:
+            adaptive_smoothing = max(0.15, base_smoothing * 0.3)
+        else:
+            # Linear interpolation between 150 and 800
+            factor = (velocity - 150) / 650.0
+            adaptive_smoothing = base_smoothing - (base_smoothing * 0.6 * factor)
             
         lerp_factor = 1.0 - adaptive_smoothing
         
-        new_x = int(self.prev_x + dx * lerp_factor * self.sensitivity)
-        new_y = int(self.prev_y + dy * lerp_factor * self.sensitivity)
+        # Add dynamic acceleration (move faster if we flick fast)
+        acceleration = 1.0
+        if velocity > 1200:
+            acceleration = 1.2
+            
+        new_x = int(self.prev_x + dx * lerp_factor * self.sensitivity * acceleration)
+        new_y = int(self.prev_y + dy * lerp_factor * self.sensitivity * acceleration)
         
         # Double clamp to screen constraints
         new_x = max(0, min(self.screen_width - 1, new_x))

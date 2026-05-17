@@ -160,7 +160,13 @@ class VisionEngine:
             if not success:
                 consecutive_failures += 1
                 if consecutive_failures % 150 == 0:
-                    print("[Engine] ⚠️ Warning: Failed to read frame from webcam consecutively. Device stream may have stalled.")
+                    print(f"[Engine] ⚠️ Warning: Failed to read frame {consecutive_failures} times. Stream may be stalled.")
+                if consecutive_failures > 300:
+                    print("[Engine] 🔄 Auto-recovering stalled camera stream...")
+                    self.cap.release()
+                    time.sleep(0.5)
+                    self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(0)
+                    consecutive_failures = 0
                 time.sleep(0.01)
                 continue
             consecutive_failures = 0
@@ -184,9 +190,33 @@ class VisionEngine:
             if tracking_status == "Active" and raw_landmarks:
                 # Prof: Gesture Prediction (Heuristic + Custom Templates)
                 t_classify_start = time.time()
-                gesture_key, confidence = self.classifier.classify(raw_landmarks.landmark)
+                raw_gesture_key, raw_confidence = self.classifier.classify(raw_landmarks.landmark)
                 t_classify = (time.time() - t_classify_start) * 1000
+
+                # --- GESTURE STABILIZATION BUFFER ---
+                # Prevent flickering by requiring a gesture to be detected consecutively,
+                # or holding the previous gesture if tracking drops for a tiny fraction of a second.
+                if not hasattr(self, 'gesture_history'):
+                    self.gesture_history = []
                 
+                self.gesture_history.append(raw_gesture_key)
+                if len(self.gesture_history) > 5:  # Look at last 5 frames (~150ms)
+                    self.gesture_history.pop(0)
+
+                # Find most common gesture in history
+                from collections import Counter
+                counter = Counter(self.gesture_history)
+                # If the most common is not 'None' and appears at least 2 times, use it.
+                # This naturally bridges 1-2 frame drops of "None" while dragging.
+                most_common_key, most_common_count = counter.most_common(1)[0]
+                
+                if most_common_key != 'None' and most_common_count >= 2:
+                    gesture_key = most_common_key
+                    confidence = raw_confidence if raw_gesture_key == most_common_key else 85.0 # fallback confidence
+                else:
+                    gesture_key = raw_gesture_key
+                    confidence = raw_confidence
+
                 # Fetch corresponding mapping from local registry
                 active_mapping = None
                 for m in self.mappings:
@@ -212,9 +242,13 @@ class VisionEngine:
                     action_executed_name = active_mapping.get("action_name", "Action")
                     
                     if action_type == 'move':
-                        # Already moved above
-                        pass
+                        # If we transitioned from a drag to a move, release the drag
+                        self.executor.terminate_continuous_actions()
                     else:
+                        # If we are doing something other than drag, terminate any active drags first
+                        if action_type != 'drag':
+                            self.executor.terminate_continuous_actions()
+                            
                         # Standard discrete or continuous execution (Left Click, drag, scroll, keystrokes, shortcuts, etc.)
                         self.executor.execute(
                             action_type=action_type,
@@ -227,7 +261,7 @@ class VisionEngine:
                     self.executor.terminate_continuous_actions()
                     
                     # 4. Continuous Unknown Gesture Clustering
-                    if gesture_key == "None":
+                    if gesture_key == "None" and raw_gesture_key == "None":
                         try:
                             norm_landmarks = self.classifier.normalize_landmarks(raw_landmarks.landmark)
                             new_pattern = self.clusterer.add_unlabeled_sample(landmarks, norm_landmarks)

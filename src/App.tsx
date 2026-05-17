@@ -45,9 +45,6 @@ function App() {
             <Route path="datasets" element={<DatasetManagement />} />
           </>
         )}
-        
-        <Route path="cloud-sync" element={<Dashboard />} />
-        <Route path="about" element={<Dashboard />} />
       </Route>
       
       <Route path="*" element={<Navigate to="/" />} />

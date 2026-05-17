@@ -157,6 +157,7 @@ class GestureClassifier:
 
         # --- B. DOUBLE-REDUNDANT GEOMETRIC HEURISTIC PIPELINE (FAIL-SAFE) ---
         thumb_tip = landmarks[4]
+        thumb_ip = landmarks[3]
         index_mcp = landmarks[5]
         index_pip = landmarks[6]
         index_tip = landmarks[8]
@@ -167,34 +168,45 @@ class GestureClassifier:
         pinky_pip = landmarks[18]
         pinky_tip = landmarks[20]
 
-        # Check Click (pinch)
-        pinch_dist = self.distance_between(thumb_tip, index_tip)
-        if pinch_dist < 0.045:
-            return "click", max(60.0, min(99.0, (1.0 - pinch_dist / 0.045) * 100))
+        # Use 3D z-axis to improve accuracy of "extended"
+        # y goes down in image coords, so tip.y < pip.y means pointing up.
+        index_extended = index_tip.y < index_pip.y and self.distance_between(index_tip, index_mcp) > 0.05
+        middle_extended = middle_tip.y < middle_pip.y and self.distance_between(middle_tip, landmarks[9]) > 0.05
+        ring_extended = ring_tip.y < ring_pip.y and self.distance_between(ring_tip, landmarks[13]) > 0.05
+        pinky_extended = pinky_tip.y < pinky_pip.y and self.distance_between(pinky_tip, landmarks[17]) > 0.05
+        thumb_extended = thumb_tip.x > thumb_ip.x + 0.02 if thumb_tip.x > index_mcp.x else thumb_tip.x < thumb_ip.x - 0.02
 
-        # Check extended fingers
-        index_extended = index_tip.y < index_pip.y
-        middle_extended = middle_tip.y < middle_pip.y
-        ring_extended = ring_tip.y < ring_pip.y
-        pinky_extended = pinky_tip.y < pinky_pip.y
+        # Drag and Drop (fist)
+        # Fist must have all fingers closed tight
+        if not index_extended and not middle_extended and not ring_extended and not pinky_extended:
+            return "fist", 95.0
 
-        # Pointer Movement (move)
-        if index_extended and not middle_extended and not ring_extended and not pinky_extended:
-            return "move", 98.0
-
-        # Context Menu (right_click)
-        if index_extended and middle_extended and not ring_extended and not pinky_extended:
-            # Check proximity for right click selection
-            dist_tips = self.distance_between(index_tip, middle_tip)
-            if dist_tips < 0.05:
-                return "right_click", 95.0
+        # Palm Open (idle)
+        # All fingers extended widely
+        if index_extended and middle_extended and ring_extended and pinky_extended and thumb_extended:
+            return "palm_open", 98.0
 
         # Scroll Up/Down (scroll)
+        # Three fingers extended
         if index_extended and middle_extended and ring_extended and not pinky_extended:
             return "scroll", 92.0
 
-        # Drag and Drop (fist)
-        if not index_extended and not middle_extended and not ring_extended and not pinky_extended:
-            return "fist", 90.0
+        # Context Menu (right_click)
+        # Two fingers extended
+        if index_extended and middle_extended and not ring_extended and not pinky_extended:
+            dist_tips = self.distance_between(index_tip, middle_tip)
+            if dist_tips < 0.06:
+                return "right_click", 90.0
+
+        # Check Click (pinch)
+        # Strict pinch checking to prevent false positives when moving
+        pinch_dist = self.distance_between(thumb_tip, index_tip)
+        if pinch_dist < 0.035 and not middle_extended and not ring_extended and not pinky_extended:
+            return "click", max(70.0, min(99.0, (1.0 - pinch_dist / 0.035) * 100))
+
+        # Pointer Movement (move)
+        # Only index extended
+        if index_extended and not middle_extended and not ring_extended and not pinky_extended and pinch_dist > 0.05:
+            return "move", 90.0
 
         return "None", 0.0
