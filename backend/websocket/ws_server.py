@@ -16,32 +16,38 @@ class WsServer:
         self.clients.add(websocket)
         print(f"[WebSocket] Client connected: {websocket.remote_address}. Total: {len(self.clients)}")
         # Send initial registration acknowledgement
-        await websocket.send(json.dumps({
-            "type": "user_connected",
-            "message": "Connected to VisionTouch Realtime AI Server",
-            "active_clients": len(self.clients)
-        }))
+        try:
+            await websocket.send(json.dumps({
+                "type": "user_connected",
+                "message": "Connected to VisionTouch Realtime AI Server",
+                "active_clients": len(self.clients)
+            }))
+        except Exception:
+            pass
 
     async def unregister(self, websocket):
-        self.clients.remove(websocket)
+        self.clients.discard(websocket)
         print(f"[WebSocket] Client disconnected: {websocket.remote_address}. Total: {len(self.clients)}")
 
     async def broadcast(self, payload):
         """
         Broadcasts a message payload to all connected clients.
         """
-        if not self.clients:
+        # Take a thread-safe atomic shallow snapshot of the clients set to prevent RuntimeError: Set changed size during iteration
+        active_clients = list(self.clients)
+        if not active_clients:
             return
             
         message = json.dumps(payload)
         disconnected = []
-        for client in self.clients:
+        for client in active_clients:
             try:
                 await client.send(message)
             except websockets.exceptions.ConnectionClosed:
                 disconnected.append(client)
             except Exception as e:
-                print(f"[WebSocket] Broadcast Error to {client.remote_address}: {e}")
+                # Disconnect if send failed to prevent stale blocking threads
+                disconnected.append(client)
                 
         for client in disconnected:
             await self.unregister(client)
