@@ -1,19 +1,75 @@
-import { Save, Sliders, Camera } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, RefreshCw, AlertTriangle, MonitorSmartphone, Wifi, Sliders, Camera } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export function Settings() {
+  const { role } = useAuth();
+  const [sensitivity, setSensitivity] = useState(50);
+  const [smoothing, setSmoothing] = useState(70);
+  const [deadzone, setDeadzone] = useState(10);
+  const [customWsUrl, setCustomWsUrl] = useState('');
+
+  useEffect(() => {
+    const savedUrl = localStorage.getItem('vt_ws_url');
+    if (savedUrl) setCustomWsUrl(savedUrl);
+  }, []);
+
+  const handleSaveNetwork = () => {
+    if (customWsUrl) {
+      localStorage.setItem('vt_ws_url', customWsUrl);
+      window.location.reload();
+    } else {
+      localStorage.removeItem('vt_ws_url');
+      window.location.reload();
+    }
+  };
+
+  const handleSave = () => {
+    console.log({ sensitivity, smoothing, deadzone });
+  };
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex justify-between items-end pb-4 border-b border-accent">
         <div>
           <h1 className="text-2xl font-bold text-primary">System Settings</h1>
-          <p className="text-sm text-text-secondary mt-1">Configure AI model parameters and camera settings</p>
+          <p className="text-sm text-text-secondary mt-1">Configure AI model parameters, network, and camera settings</p>
         </div>
-        <button className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors">
+        <button 
+          onClick={handleSave}
+          className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-primary/90 transition-colors"
+        >
           <Save className="w-4 h-4" /> Save Changes
         </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Network Configuration */}
+        <div className="bg-white rounded-xl shadow-sm border border-accent p-6 space-y-6">
+          <div className="flex items-center gap-2">
+            <Wifi className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold text-text-primary">Network Connection</h2>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Backend IP Address</label>
+              <input 
+                type="text" 
+                value={customWsUrl}
+                onChange={(e) => setCustomWsUrl(e.target.value)}
+                placeholder="ws://192.168.1.5:8765"
+                className="w-full border border-accent rounded-md px-3 py-2 text-sm text-text-primary bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            <button 
+              onClick={handleSaveNetwork}
+              className="w-full bg-primary/10 text-primary px-4 py-2 rounded-md text-sm font-bold hover:bg-primary/20 transition-all"
+            >
+              Update Network Settings
+            </button>
+          </div>
+        </div>
+
         {/* Camera Config */}
         <div className="bg-white rounded-xl shadow-sm border border-accent p-6 space-y-6">
           <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">

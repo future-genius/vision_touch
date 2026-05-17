@@ -170,6 +170,7 @@ class WsServer:
             await self.unregister(websocket)
 
     async def start(self):
-        print(f"Starting WebSocket server on ws://localhost:{self.port}...")
-        async with websockets.serve(self.handle_message, "localhost", self.port):
+        print(f"Starting WebSocket server on ws://0.0.0.0:{self.port}...")
+        print("Listening on all network interfaces. Mobile PWA can connect via your PC's local IP address.")
+        async with websockets.serve(self.handle_message, "0.0.0.0", self.port):
             await asyncio.Future()  # run forever
