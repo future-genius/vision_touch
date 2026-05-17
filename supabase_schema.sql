@@ -69,13 +69,19 @@ VALUES
     ('Pinch / Click', 'pinch_click', 'MousePointerClick', 'Thumb and index fingers touching to trigger left clicks.', 'Clicks', 0.70, TRUE),
     ('Two Finger Spread', 'two_finger_spread', 'Move', 'Index and middle fingers extended to drag or move items.', 'Drag', 0.60, TRUE),
     ('Palm Open', 'palm_open', 'Hand', 'All five fingers spread open to pause or trigger idle states.', 'Navigation', 0.50, TRUE),
-    ('Swipe Left / Right', 'swipe_left_right', 'ScrollText', 'A rapid horizontal swipe to move back or forward.', 'Shortcuts', 0.70, TRUE)
+    ('Swipe Left / Right', 'swipe_left_right', 'ScrollText', 'A rapid horizontal swipe to move back or forward.', 'Shortcuts', 0.70, TRUE),
+    -- ML-Driven Dataset Classes
+    ('Pointer Movement (ML)', 'move', 'MousePointer2', 'Index extended up to drive cursor.', 'Cursor', 0.65, TRUE),
+    ('Left Mouse Click (ML)', 'click', 'MousePointerClick', 'Thumb and index pinch to trigger left clicks.', 'Clicks', 0.70, TRUE),
+    ('Context Menu Click (ML)', 'right_click', 'CornerDownLeft', 'Index and middle extended together to trigger right clicks.', 'Clicks', 0.70, TRUE),
+    ('Continuous Scroll (ML)', 'scroll', 'ScrollText', 'Waving three extended fingers up/down to scroll.', 'Navigation', 0.65, TRUE),
+    ('Drag Holding (ML)', 'fist', 'Grab', 'Fully closed fist to grab and drag items.', 'Drag', 0.60, TRUE)
 ON CONFLICT (gesture_name) DO UPDATE 
 SET gesture_key = EXCLUDED.gesture_key, 
     gesture_icon = EXCLUDED.gesture_icon,
     gesture_description = EXCLUDED.gesture_description;
 
--- 7. Seed Initial Maps (Index Pointer -> Pointer Movement, Pinch/Click -> Trigger Mouse Click, Two Finger Spread -> Drag and Drop Action)
+-- 7. Seed Initial Maps
 INSERT INTO gesture_action_map (gesture_id, action_id, sensitivity, cooldown, active_status)
 SELECT g.id, a.id, 1.5, 0.2, TRUE
 FROM gestures g, actions a
@@ -93,3 +99,35 @@ SELECT g.id, a.id, 1.2, 0.3, TRUE
 FROM gestures g, actions a
 WHERE g.gesture_key = 'two_finger_spread' AND a.action_name = 'Drag and Drop Action'
 ON CONFLICT DO NOTHING;
+
+-- Seed ML Action Maps
+INSERT INTO gesture_action_map (gesture_id, action_id, sensitivity, cooldown, active_status)
+SELECT g.id, a.id, 1.6, 0.05, TRUE
+FROM gestures g, actions a
+WHERE g.gesture_key = 'move' AND a.action_name = 'Pointer Movement'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO gesture_action_map (gesture_id, action_id, sensitivity, cooldown, active_status)
+SELECT g.id, a.id, 1.0, 0.35, TRUE
+FROM gestures g, actions a
+WHERE g.gesture_key = 'click' AND a.action_name = 'Trigger Mouse Click'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO gesture_action_map (gesture_id, action_id, sensitivity, cooldown, active_status)
+SELECT g.id, a.id, 1.0, 0.45, TRUE
+FROM gestures g, actions a
+WHERE g.gesture_key = 'right_click' AND a.action_name = 'Trigger Context Menu'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO gesture_action_map (gesture_id, action_id, sensitivity, cooldown, active_status)
+SELECT g.id, a.id, 1.2, 0.05, TRUE
+FROM gestures g, actions a
+WHERE g.gesture_key = 'scroll' AND a.action_name = 'Scroll Down Screen'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO gesture_action_map (gesture_id, action_id, sensitivity, cooldown, active_status)
+SELECT g.id, a.id, 1.0, 0.05, TRUE
+FROM gestures g, actions a
+WHERE g.gesture_key = 'fist' AND a.action_name = 'Drag and Drop Action'
+ON CONFLICT DO NOTHING;
+

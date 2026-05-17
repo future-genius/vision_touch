@@ -85,6 +85,31 @@ class WsServer:
                                 "success": success
                             })
                             
+                    elif event_type == "retrain_model":
+                        if self.engine:
+                            try:
+                                from backend.inference.train_pipeline import GestureTrainPipeline
+                                pipeline = GestureTrainPipeline()
+                                success = pipeline.train()
+                                if success:
+                                    # Reload the classifier ML model
+                                    self.engine.classifier.load_ml_model()
+                                    # Reload mappings
+                                    self.engine.reload_registry()
+                                    
+                                await self.broadcast({
+                                    "type": "inference_updated",
+                                    "message": "AI Gesture model retrained and hot-loaded successfully!",
+                                    "success": success
+                                })
+                            except Exception as e:
+                                print(f"Error retraining model: {e}")
+                                await websocket.send(json.dumps({
+                                    "type": "admin_notification",
+                                    "message": f"Retraining failed: {str(e)}",
+                                    "success": False
+                                }))
+                            
                     elif event_type == "start_feeding":
                         g_key = data.get("gesture_key")
                         if self.engine and g_key:

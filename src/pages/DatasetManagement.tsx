@@ -20,7 +20,8 @@ export function DatasetManagement() {
     stopFeeding, 
     pendingPattern, 
     clearPendingPattern,
-    triggerHotReload 
+    triggerHotReload,
+    retrainModel
   } = useAiStream();
   
   const [datasets, setDatasets] = useState<Dataset[]>([]);
@@ -419,6 +420,30 @@ export function DatasetManagement() {
                  </div>
               </div>
             )}
+          </div>
+
+          {/* RETRAIN MODEL CARD */}
+          <div className="bg-white p-6 rounded-3xl border border-accent shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <h3 className="text-xs font-black text-text-primary uppercase tracking-wider">
+                AI Model Training
+              </h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Compile all current landmark templates, execute the Random Forest preprocessing pipeline, and deploy the updated classifier weights.
+            </p>
+            
+            <button 
+              onClick={() => {
+                retrainModel();
+                alert("AI Model retraining triggered successfully! Connected vision servers will reload automatically in a few seconds.");
+              }}
+              className="w-full py-4 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.25em] hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Retrain Classifier
+            </button>
           </div>
         </div>
       </div>

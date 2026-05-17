@@ -46,6 +46,7 @@ export interface AiStreamContextType {
   startFeeding: (gestureKey: string) => void;
   stopFeeding: () => void;
   triggerHotReload: () => void;
+  retrainModel: () => void;
   calibratePoint: (point: 'top_left' | 'bottom_right', x: number, y: number) => void;
   setCursorConfig: (config: { sensitivity?: number; smoothing?: number; dead_zone?: number }) => void;
 }
@@ -120,6 +121,11 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const triggerHotReload = useCallback(() => {
     sendEvent('hot_reload');
     addLog('Triggering AI Inference mappings hot-reload...', 'info');
+  }, [sendEvent, addLog]);
+
+  const retrainModel = useCallback(() => {
+    sendEvent('retrain_model');
+    addLog('Triggering AI Model retraining pipeline...', 'info');
   }, [sendEvent, addLog]);
 
   const calibratePoint = useCallback((point: 'top_left' | 'bottom_right', x: number, y: number) => {
@@ -285,6 +291,7 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       startFeeding,
       stopFeeding,
       triggerHotReload,
+      retrainModel,
       calibratePoint,
       setCursorConfig
     }}>
