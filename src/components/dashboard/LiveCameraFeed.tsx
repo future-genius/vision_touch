@@ -14,23 +14,78 @@ export function LiveCameraFeed() {
   
   const isTracking = data.trackingStatus === 'Active';
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   const startCamera = () => {
     setIsCameraActive(true);
     setCameraError(null);
-    
-    // Initialize the Python AI tracking backend
     initializeEngine();
   };
 
   const stopCamera = () => {
     setIsCameraActive(false);
-    
-    // Put Python AI backend on standby
     disconnectEngine();
   };
+
+  // Create a hidden video element for local rendering
+  useEffect(() => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    videoRef.current = video;
+    return () => {
+      if (video) video.pause();
+    };
+  }, []);
+
+  // Manage local camera stream binding
+  useEffect(() => {
+    let active = true;
+    
+    const openCamera = async () => {
+      if (!isCameraActive) return;
+      try {
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 } }
+          });
+        } catch (constraintErr) {
+          console.warn("Strict constraints failed, falling back to default video stream:", constraintErr);
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
+        
+        if (active) {
+          setLocalStream(stream);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(err => console.error("Error playing local video:", err));
+          }
+        }
+      } catch (err) {
+        console.error("Camera access failed:", err);
+        if (active) {
+          setCameraError("Camera blocked. Please allow browser webcam access or check device drivers.");
+        }
+      }
+    };
+
+    if (isCameraActive) {
+      openCamera();
+    } else {
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        setLocalStream(null);
+      }
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [isCameraActive]);
 
   // Sync camera UI state with connection status
   useEffect(() => {
@@ -45,8 +100,11 @@ export function LiveCameraFeed() {
   useEffect(() => {
     return () => {
       disconnectEngine();
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
     };
-  }, [disconnectEngine]);
+  }, [disconnectEngine, localStream]);
 
   // Real-time Skeletal Rendering Canvas Loop
   useEffect(() => {
@@ -59,8 +117,14 @@ export function LiveCameraFeed() {
     let animationFrameId: number;
 
     const drawHand = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // 1. Draw the live webcam frame (if active)
+      if (videoRef.current && videoRef.current.readyState >= 2) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
 
+      // 2. Draw the neural skeletal overlay
       if (isTracking && data.landmarks && data.landmarks.length === 21) {
         const pts = data.landmarks;
         const w = canvas.width;
@@ -115,7 +179,7 @@ export function LiveCameraFeed() {
 
     drawHand();
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isCameraActive, isTracking, data.landmarks]);
+  }, [isCameraActive, isTracking, data.landmarks, localStream]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-accent p-4 md:p-6 flex flex-col h-full overflow-hidden">
