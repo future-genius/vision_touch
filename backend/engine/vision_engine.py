@@ -184,7 +184,10 @@ class VisionEngine:
                 if cap and cap.isOpened():
                     success, test_frame = cap.read()
                     if success and test_frame is not None:
-                        print(f"[Engine] Explicitly requested Camera index {cam_index} verified successfully! (Frame shape: {test_frame.shape})")
+                        mean_val = np.mean(test_frame)
+                        print(f"[Engine] Explicitly requested Camera index {cam_index} opened. Average brightness: {mean_val:.1f}")
+                        if mean_val < 8.0:
+                            print(f"[Engine] ⚠️ WARNING: Camera {cam_index} is completely black! Make sure privacy shutter is open.")
                         working_index = cam_index
                     cap.release()
             except Exception as cam_err:
@@ -198,10 +201,15 @@ class VisionEngine:
                     if cap and cap.isOpened():
                         success, test_frame = cap.read()
                         if success and test_frame is not None:
-                            print(f"[Engine] Camera index {index} verified successfully! (Frame shape: {test_frame.shape})")
-                            working_index = index
-                            cap.release()
-                            break
+                            mean_val = np.mean(test_frame)
+                            print(f"[Engine] Testing camera index {index}... Mean brightness: {mean_val:.1f}")
+                            if mean_val > 8.0:
+                                print(f"[Engine] Camera index {index} verified successfully as active color source! (Frame shape: {test_frame.shape})")
+                                working_index = index
+                                cap.release()
+                                break
+                            else:
+                                print(f"[Engine] Camera index {index} is a black stream (mean: {mean_val:.1f}). Scanning next camera...")
                         cap.release()
                 except Exception as cam_err:
                     print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
@@ -459,12 +467,8 @@ class VisionEngine:
                 print(f"[Profiler] Loop: {inference_time:.1f}ms | Capture: {t_read:.1f}ms | MP: {t_track:.1f}ms | RandomForest: {t_classify:.1f}ms | Sync: {t_broadcast:.1f}ms")
                 
             if self.debug_mode:
-                self.tracker.draw_skeleton(frame, raw_landmarks)
-                cv2.putText(frame, f"FPS: {fps} | {human_gesture_name}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                cv2.imshow("VisionTouch AI Server Monitor", frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    self.is_running = False
-                    break
+                # Silent debug mode - performs console telemetry updates without raw window popups
+                pass
                     
             time.sleep(0.005)
             
