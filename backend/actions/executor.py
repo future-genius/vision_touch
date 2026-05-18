@@ -7,6 +7,7 @@ class ActionExecutor:
     def __init__(self):
         # Prevent PyAutoGUI exceptions
         pyautogui.FAILSAFE = False
+        pyautogui.PAUSE = 0
         
         # Keep track of active states (e.g., drag and drop)
         self.is_dragging = False

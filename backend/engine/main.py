@@ -16,6 +16,53 @@ from backend.actions.executor import ActionExecutor
 from backend.services.db_service import DbService
 from backend.websocket.ws_server import WsServer
 
+class ThreadedVideoCapture:
+    def __init__(self, index, cap_api=None):
+        import os
+        if cap_api is not None:
+            self.cap = cv2.VideoCapture(index, cap_api)
+        else:
+            self.cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
+            
+        self.grabbed = False
+        self.frame = None
+        self.is_running = False
+        self.read_lock = threading.Lock()
+        
+    def start(self):
+        if self.cap.isOpened():
+            self.grabbed, self.frame = self.cap.read()
+            self.is_running = True
+            self.thread = threading.Thread(target=self.update, args=())
+            self.thread.daemon = True
+            self.thread.start()
+        return self
+        
+    def update(self):
+        while self.is_running:
+            if self.cap.isOpened():
+                grabbed, frame = self.cap.read()
+                if grabbed:
+                    with self.read_lock:
+                        self.grabbed = grabbed
+                        self.frame = frame
+            time.sleep(0.005) # Prevent CPU starvation
+            
+    def read(self):
+        with self.read_lock:
+            if self.frame is not None:
+                return self.grabbed, self.frame.copy()
+            return self.grabbed, None
+            
+    def isOpened(self):
+        return self.cap.isOpened()
+        
+    def release(self):
+        self.is_running = False
+        if hasattr(self, 'thread'):
+            self.thread.join(timeout=1.0)
+        self.cap.release()
+
 class VisionEngine:
     def __init__(self, debug_mode=False):
         self.debug_mode = debug_mode
@@ -91,7 +138,7 @@ class VisionEngine:
         print("[Engine] Initializing CV2 camera capture stream...")
         
         # Auto-detect the first working hardware webcam index (0 to 3)
-        self.cap = None
+        working_cap = None
         working_index = None
         
         for index in [0, 1, 2, 3]:
@@ -103,24 +150,31 @@ class VisionEngine:
                     success, test_frame = cap.read()
                     if success and test_frame is not None:
                         print(f"[Engine] Camera index {index} verified successfully! (Frame shape: {test_frame.shape})")
-                        self.cap = cap
+                        working_cap = cap
                         working_index = index
                         break
                     cap.release()
             except Exception as cam_err:
                 print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
                 
-        if not self.cap:
+        if not working_cap:
             print("\n[Engine] ❌ ERROR: No active, working webcam could be opened!")
             print("[Engine] Please ensure your web camera is connected, drivers are active, and it is NOT in use by Zoom/Teams/Chrome.\n")
             return
             
+        # Release the temporary test capture
+        working_cap.release()
+        
+        # Initialize threaded video capture to bypass OpenCV internal buffer backlog lag
+        self.cap = ThreadedVideoCapture(working_index)
+        self.cap.start()
+        
         self.is_running = True
         # Run capture loop in an independent background thread to keep WebSocket server responsive
         self.capture_thread = threading.Thread(target=self.run_capture_loop)
         self.capture_thread.daemon = True
         self.capture_thread.start()
-        print(f"[Engine] Camera thread started successfully on device index {working_index}.")
+        print(f"[Engine] Threaded camera stream started successfully on device index {working_index}.")
 
     def stop_capture(self):
         self.is_running = False
@@ -157,7 +211,7 @@ class VisionEngine:
             success, frame = self.cap.read()
             t_read = (time.time() - start_frame_time) * 1000
             
-            if not success:
+            if not success or frame is None:
                 consecutive_failures += 1
                 if consecutive_failures % 150 == 0:
                     print(f"[Engine] ⚠️ Warning: Failed to read frame {consecutive_failures} times. Stream may be stalled.")
@@ -165,7 +219,8 @@ class VisionEngine:
                     print("[Engine] 🔄 Auto-recovering stalled camera stream...")
                     self.cap.release()
                     time.sleep(0.5)
-                    self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(0)
+                    self.cap = ThreadedVideoCapture(0)
+                    self.cap.start()
                     consecutive_failures = 0
                 time.sleep(0.01)
                 continue

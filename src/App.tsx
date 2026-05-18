@@ -17,6 +17,7 @@ import { MobileRemote } from './pages/MobileRemote';
 import { useAuth } from './context/AuthContext';
 import { WebVisionProvider } from './context/WebVisionContext';
 import { VirtualCursor } from './components/VirtualCursor';
+import { FloatingCameraPreview } from './components/FloatingCameraPreview';
 
 function App() {
   const { user, loading, role } = useAuth();
@@ -32,6 +33,7 @@ function App() {
   return (
     <WebVisionProvider>
       <VirtualCursor />
+      <FloatingCameraPreview />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <Login />} />

@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { HandTracker } from '../lib/vision/HandTracker';
 
+export interface Point3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
 interface CursorState {
   x: number;
   y: number;
@@ -12,6 +18,16 @@ interface WebVisionContextType {
   isActive: boolean;
   isInitializing: boolean;
   cursor: CursorState;
+  landmarks: Point3D[];
+  cameraStream: MediaStream | null;
+  showPreview: boolean;
+  setShowPreview: (show: boolean) => void;
+  sensitivity: number;
+  setSensitivity: (val: number) => void;
+  smoothing: number;
+  setSmoothing: (val: number) => void;
+  facingMode: 'user' | 'environment';
+  setFacingMode: (mode: 'user' | 'environment') => void;
   startCamera: () => Promise<void>;
   stopCamera: () => void;
   error: string | null;
@@ -19,33 +35,31 @@ interface WebVisionContextType {
 
 const WebVisionContext = createContext<WebVisionContextType | undefined>(undefined);
 
-// Smoothing buffer for cursor
-const HISTORY_SIZE = 5;
-
 export function WebVisionProvider({ children }: { children: ReactNode }) {
   const [isActive, setIsActive] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   const [cursor, setCursor] = useState<CursorState>({ x: 0, y: 0, isPinching: false, isVisible: false });
+  const [landmarks, setLandmarks] = useState<Point3D[]>([]);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const [sensitivity, setSensitivity] = useState(1.6);
+  const [smoothing, setSmoothing] = useState(0.65);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
   
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const trackerRef = useRef<HandTracker | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const lastVideoTimeRef = useRef<number>(-1);
+  const cursorRef = useRef({ x: 0, y: 0, isVisible: false });
   
-  // Smoothing queues
-  const xHistory = useRef<number[]>([]);
-  const yHistory = useRef<number[]>([]);
-
   // Initialize the video element off-screen to capture stream
   useEffect(() => {
     const video = document.createElement('video');
-    // Mobile browsers strictly require muted=true to programmatically play video
     video.muted = true;
     video.playsInline = true;
-    // Position off-screen instead of display:none so mobile Safari doesn't throttle the frames
     video.style.position = 'fixed';
     video.style.top = '-9999px';
     video.style.left = '-9999px';
@@ -58,18 +72,14 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
     videoRef.current = video;
 
     return () => {
-      document.body.removeChild(video);
+      if (video && document.body.contains(video)) {
+        document.body.removeChild(video);
+      }
     };
   }, []);
 
   const calculateDistance = (p1: {x: number, y: number}, p2: {x: number, y: number}) => {
     return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
-  };
-
-  const smoothCoordinate = (newVal: number, history: number[]) => {
-    history.push(newVal);
-    if (history.length > HISTORY_SIZE) history.shift();
-    return history.reduce((a, b) => a + b, 0) / history.length;
   };
 
   const processFrame = useCallback(() => {
@@ -84,6 +94,7 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
       
       if (result && result.landmarks.length > 0) {
         const hand = result.landmarks[0]; // Primary hand
+        setLandmarks(hand);
         
         // Index 8: Index Finger Tip
         // Index 4: Thumb Tip
@@ -94,16 +105,49 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
         const rawX = 1 - indexTip.x;
         const rawY = indexTip.y;
         
-        // Map to window coordinates
-        const targetX = rawX * window.innerWidth;
-        const targetY = rawY * window.innerHeight;
+        // Center-focused active zone: scale comfortable central area (0.22 to 0.78) to full screen
+        const xMin = 0.22;
+        const xMax = 0.78;
+        const yMin = 0.22;
+        const yMax = 0.78;
         
-        const smoothedX = smoothCoordinate(targetX, xHistory.current);
-        const smoothedY = smoothCoordinate(targetY, yHistory.current);
+        let mappedX = (rawX - xMin) / (xMax - xMin);
+        let mappedY = (rawY - yMin) / (yMax - yMin);
+        
+        // Scale coordinate centered around 0.5 using sensitivity
+        mappedX = 0.5 + (mappedX - 0.5) * sensitivity;
+        mappedY = 0.5 + (mappedY - 0.5) * sensitivity;
+        
+        const targetX = Math.max(0, Math.min(window.innerWidth, mappedX * window.innerWidth));
+        const targetY = Math.max(0, Math.min(window.innerHeight, mappedY * window.innerHeight));
+        
+        // Adaptive LERP smoothing based on movement velocity
+        let smoothedX = targetX;
+        let smoothedY = targetY;
+        
+        if (cursorRef.current.isVisible) {
+          const dx = targetX - cursorRef.current.x;
+          const dy = targetY - cursorRef.current.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          // Adaptive factor: fast movements have higher LERP factor (more responsive),
+          // slow movements have lower LERP factor (more stable and smooth for small clicks)
+          const baseLerp = 1.0 - smoothing;
+          const lerpFactor = dist > 80 
+            ? Math.min(0.85, baseLerp * 1.6) 
+            : dist < 10 
+              ? Math.max(0.08, baseLerp * 0.4) 
+              : Math.max(0.1, baseLerp * 0.75);
+              
+          smoothedX = cursorRef.current.x + dx * lerpFactor;
+          smoothedY = cursorRef.current.y + dy * lerpFactor;
+        }
         
         // Calculate pinch distance in normalized space
         const pinchDist = calculateDistance(indexTip, thumbTip);
-        const isPinching = pinchDist < 0.05; // 5% of bounding box distance
+        const isPinching = pinchDist < 0.045; // 4.5% distance threshold
+        
+        cursorRef.current = { x: smoothedX, y: smoothedY, isVisible: true };
         
         setCursor({
           x: smoothedX,
@@ -112,40 +156,54 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
           isVisible: true
         });
       } else {
+        setLandmarks([]);
+        cursorRef.current.isVisible = false;
         setCursor(prev => ({ ...prev, isVisible: false }));
       }
     }
     
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  }, [isActive]);
+  }, [isActive, sensitivity, smoothing]);
+
+  // Restart frame loop when active state or config changes
+  useEffect(() => {
+    if (isActive) {
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+    }
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isActive, processFrame]);
 
   const startCamera = async () => {
     try {
       setError(null);
       setIsInitializing(true);
 
-      // Create a 15-second timeout promise to prevent infinite loading state if WebGL compiles slowly or CDN stalls
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Vision Engine timed out during initialization. Please check your camera permissions, ensure your browser supports WebGL, and refresh.")), 15000)
+        setTimeout(() => reject(new Error("Vision Engine timed out during initialization. Please check camera permissions, ensure your browser supports WebGL, and refresh.")), 15000)
       );
 
       const initPromise = (async () => {
-        // 1. Instantly request camera permission first to give the user immediate visual feedback!
+        // Request camera permission with facing mode
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             width: { ideal: 640 }, 
             height: { ideal: 480 }, 
-            facingMode: 'user' 
+            facingMode: facingMode
           }
         });
         
         streamRef.current = stream;
+        setCameraStream(stream);
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
         }
 
-        // 2. Initialize MediaPipe ML engine in parallel
+        // Initialize MediaPipe ML engine in parallel
         if (!trackerRef.current) {
           trackerRef.current = new HandTracker();
           await trackerRef.current.initialize();
@@ -153,12 +211,8 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
         
         setIsActive(true);
         setIsInitializing(false);
-        
-        // Start processing loop
-        animationFrameRef.current = requestAnimationFrame(processFrame);
       })();
 
-      // Race the camera stream/AI model downloads against the timeout
       await Promise.race([initPromise, timeoutPromise]);
       
     } catch (err: any) {
@@ -171,6 +225,9 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
   const stopCamera = () => {
     setIsActive(false);
     setCursor(prev => ({ ...prev, isVisible: false }));
+    setLandmarks([]);
+    setCameraStream(null);
+    cursorRef.current.isVisible = false;
     
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -186,6 +243,18 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Re-start camera if facingMode is changed while active
+  useEffect(() => {
+    if (isActive) {
+      stopCamera();
+      // small delay to let devices release before grabbing again
+      const timer = setTimeout(() => {
+        startCamera();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [facingMode]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -197,7 +266,24 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <WebVisionContext.Provider value={{ isActive, isInitializing, cursor, startCamera, stopCamera, error }}>
+    <WebVisionContext.Provider value={{ 
+      isActive, 
+      isInitializing, 
+      cursor, 
+      landmarks,
+      cameraStream,
+      showPreview,
+      setShowPreview,
+      sensitivity,
+      setSensitivity,
+      smoothing,
+      setSmoothing,
+      facingMode,
+      setFacingMode,
+      startCamera, 
+      stopCamera, 
+      error 
+    }}>
       {children}
     </WebVisionContext.Provider>
   );

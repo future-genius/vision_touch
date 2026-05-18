@@ -6,6 +6,7 @@ class CursorController:
     def __init__(self):
         # Prevent PyAutoGUI exceptions on screen corners
         pyautogui.FAILSAFE = False
+        pyautogui.PAUSE = 0
         
         # Get screen size (supports multiple monitors joined as a single large screen in Windows)
         self.screen_width, self.screen_height = pyautogui.size()
