@@ -266,11 +266,16 @@ class VisionEngine:
         if len(self.gesture_history) > self.stabilization_frames:
             self.gesture_history.pop(0)
 
-        # Require N consecutive matching predictions to shift states
-        if len(self.gesture_history) == self.stabilization_frames:
-            first = self.gesture_history[0]
-            if all(g == first for g in self.gesture_history):
-                return first
+        # Mode-based gesture stabilization (majority voting)
+        if len(self.gesture_history) > 0:
+            from collections import Counter
+            counts = Counter(self.gesture_history)
+            most_common, count = counts.most_common(1)[0]
+            
+            # If the most common gesture represents the majority of frames, return it
+            if count >= (len(self.gesture_history) // 2 + 1):
+                return most_common
+                
         return "None"
 
     def run_capture_loop(self):
@@ -334,7 +339,7 @@ class VisionEngine:
             
             # 4. Action Dispatching & Cursor Moving
             t_action_start = time.time()
-            if tracking_status == "Active" and landmarks and predicted_label != "None":
+            if tracking_status == "Active" and landmarks:
                 # Find matching dynamic action
                 matched_mapping = self.find_action_mapping(predicted_label)
                 
@@ -357,7 +362,16 @@ class VisionEngine:
                 else:
                     self.prev_thumb_y = None
                     
-                    if matched_mapping:
+                    # Heuristic Fallback: If no mapping is found or if it is a move/None gesture,
+                    # guarantee that pointer movement is executed so the cursor never freezes!
+                    if not matched_mapping or matched_mapping.get("action_type") == "move" or predicted_label in ["None", "OPEN_PALM"]:
+                        # Smooth movement LERP using index tip (Joint 8)
+                        index_tip = landmarks[8]
+                        act_sens = matched_mapping.get("sensitivity", 1.0) if matched_mapping else 1.0
+                        self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
+                        cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
+                        action_executed_name = "Pointer Movement"
+                    else:
                         action_type = matched_mapping.get("action_type")
                         act_params = matched_mapping.get("action_parameters", {})
                         act_cooldown = matched_mapping.get("cooldown", 0.4)
@@ -369,12 +383,7 @@ class VisionEngine:
                         # Update sensitivity factor on cursor controller
                         self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
                         
-                        if action_type == "move":
-                            # Smooth movement LERP
-                            cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
-                            action_executed_name = "Pointer Movement"
-                            
-                        elif action_type == "drag":
+                        if action_type == "drag":
                             # Continuous Drag
                             cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
                             self.executor.execute("drag", act_params, act_cooldown, "drag")
