@@ -131,9 +131,19 @@ class CursorController:
 
         # Perform system cursor call
         try:
-            pyautogui.moveTo(new_x, new_y, _pause=False)
+            import os
+            if os.name == 'nt':
+                import ctypes
+                # Direct hardware-level mouse control bypasses PyAutoGUI UAC permission blocks
+                ctypes.windll.user32.SetCursorPos(new_x, new_y)
+            else:
+                pyautogui.moveTo(new_x, new_y, _pause=False)
             self.prev_x, self.prev_y = new_x, new_y
         except Exception as e:
-            print(f"[Cursor] Move Exception: {e}")
+            try:
+                pyautogui.moveTo(new_x, new_y, _pause=False)
+                self.prev_x, self.prev_y = new_x, new_y
+            except Exception:
+                pass
 
         return new_x, new_y

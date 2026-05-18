@@ -80,6 +80,7 @@ class VisionEngine:
         self.debug_mode = debug_mode
         self.is_running = False
         self.cap = None
+        self.working_index = 0
         self.capture_thread = None
         
         # Initialize modular services
@@ -210,6 +211,7 @@ class VisionEngine:
             return
         
         # Start threaded video capture for zero buffer lag
+        self.working_index = working_index
         self.cap = ThreadedVideoCapture(working_index)
         self.cap.start()
         
@@ -300,7 +302,7 @@ class VisionEngine:
                     print("[Engine] Camera stalled. Recovering...")
                     self.cap.release()
                     time.sleep(0.5)
-                    self.cap = ThreadedVideoCapture(0)
+                    self.cap = ThreadedVideoCapture(self.working_index)
                     self.cap.start()
                     consecutive_failures = 0
                 time.sleep(0.01)
