@@ -15,6 +15,7 @@ if workspace_root not in sys.path:
     sys.path.insert(0, workspace_root)
 
 import cv2
+import pyautogui
 import asyncio
 import time
 import threading
