@@ -20,10 +20,20 @@ from backend.engine.vision_engine import VisionEngine, ThreadedVideoCapture
 async def main():
     # Detect if '--debug' flag is passed
     debug = '--debug' in sys.argv
+    
+    # Check for custom camera index argument: --cam <index>
+    cam_index = None
+    if '--cam' in sys.argv:
+        try:
+            idx = sys.argv.index('--cam')
+            cam_index = int(sys.argv[idx + 1])
+        except Exception:
+            pass
+            
     engine = VisionEngine(debug_mode=debug)
     
     # Automatically start CV2 camera capture stream on boot for autonomous desktop tracking
-    engine.start_capture()
+    engine.start_capture(cam_index=cam_index)
     
     # Run WebSockets Server
     await engine.ws.start()

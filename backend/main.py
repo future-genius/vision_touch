@@ -19,11 +19,20 @@ async def main():
     debug = '--debug' in sys.argv
     print(f"\n=== Starting VisionTouch Enterprise AI Platform (Debug: {debug}) ===")
     
+    # Check for custom camera index argument: --cam <index>
+    cam_index = None
+    if '--cam' in sys.argv:
+        try:
+            idx = sys.argv.index('--cam')
+            cam_index = int(sys.argv[idx + 1])
+        except Exception:
+            pass
+            
     # Instantiate the unified ML vision engine
     engine = VisionEngine(debug_mode=debug)
     
     # Automatically start CV2 camera capture stream on boot for autonomous desktop tracking
-    engine.start_capture()
+    engine.start_capture(cam_index=cam_index)
     
     # Run the WebSocket server broadcast loop forever
     await engine.ws.start()

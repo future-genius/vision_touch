@@ -168,35 +168,46 @@ class VisionEngine:
         self.feed_gesture_key = None
         print("[Engine] Landmark database feeding mode deactivated.")
 
-    def start_capture(self):
+    def start_capture(self, cam_index=None):
         if self.is_running:
             return
             
         print("[Engine] Initializing CV2 camera capture stream...")
         
-        # Auto-detect the first working hardware webcam index (0 to 3)
-        working_cap = None
         working_index = None
         
-        for index in [0, 1, 2, 3]:
+        # If a specific camera index is requested, try that first
+        if cam_index is not None:
             try:
-                cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
+                cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(cam_index)
                 if cap and cap.isOpened():
                     success, test_frame = cap.read()
                     if success and test_frame is not None:
-                        print(f"[Engine] Camera index {index} verified successfully! (Frame shape: {test_frame.shape})")
-                        working_cap = cap
-                        working_index = index
-                        break
+                        print(f"[Engine] Explicitly requested Camera index {cam_index} verified successfully! (Frame shape: {test_frame.shape})")
+                        working_index = cam_index
                     cap.release()
             except Exception as cam_err:
-                print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
+                print(f"[Engine] Testing requested camera index {cam_index} failed: {cam_err}")
+
+        # If no index was provided or the selected one failed, search for first working camera
+        if working_index is None:
+            for index in [0, 1, 2, 3]:
+                try:
+                    cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
+                    if cap and cap.isOpened():
+                        success, test_frame = cap.read()
+                        if success and test_frame is not None:
+                            print(f"[Engine] Camera index {index} verified successfully! (Frame shape: {test_frame.shape})")
+                            working_index = index
+                            cap.release()
+                            break
+                        cap.release()
+                except Exception as cam_err:
+                    print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
                 
-        if not working_cap:
+        if working_index is None:
             print("\n[Engine] ❌ ERROR: No active, working webcam could be opened!")
             return
-            
-        working_cap.release()
         
         # Start threaded video capture for zero buffer lag
         self.cap = ThreadedVideoCapture(working_index)
