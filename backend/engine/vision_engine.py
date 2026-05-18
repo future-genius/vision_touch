@@ -109,6 +109,9 @@ class VisionEngine:
         self.gesture_history = []
         self.stabilization_frames = 3
 
+        # Scrolling tracker
+        self.prev_thumb_y = None
+
     def load_ml_model(self):
         """
         Dynamically loads the RandomForest models from the checkpoints.
@@ -323,34 +326,53 @@ class VisionEngine:
                 # Find matching dynamic action
                 matched_mapping = self.find_action_mapping(predicted_label)
                 
-                if matched_mapping:
-                    action_type = matched_mapping.get("action_type")
-                    act_params = matched_mapping.get("action_parameters", {})
-                    act_cooldown = matched_mapping.get("cooldown", 0.4)
-                    act_sens = matched_mapping.get("sensitivity", 1.0)
+                # Check for dynamic real-time scrolling intercept
+                if predicted_label == "THUMB_ONLY":
+                    # Dynamic y-coordinate scrolling (Thumb tip Joint 4)
+                    thumb_tip = landmarks[4]
+                    current_y = thumb_tip["y"]
                     
-                    # Pointer index landmark (Joint 8 tip of index finger)
-                    index_tip = landmarks[8]
+                    if self.prev_thumb_y is not None:
+                        y_diff = current_y - self.prev_thumb_y
+                        # Threshold of 0.012 filters out hand micro-shaking
+                        if abs(y_diff) > 0.012:
+                            direction = "up" if y_diff < 0 else "down"
+                            scroll_amount = int(abs(y_diff) * 200)
+                            scroll_params = {"direction": direction, "amount": scroll_amount}
+                            self.executor.execute("scroll", scroll_params, 0.03, "scroll")
+                            action_executed_name = f"Scroll {direction.upper()}"
+                    self.prev_thumb_y = current_y
+                else:
+                    self.prev_thumb_y = None
                     
-                    # Update sensitivity factor on cursor controller
-                    self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
-                    
-                    if action_type == "move":
-                        # Smooth movement LERP
-                        cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
-                        action_executed_name = "Pointer Movement"
+                    if matched_mapping:
+                        action_type = matched_mapping.get("action_type")
+                        act_params = matched_mapping.get("action_parameters", {})
+                        act_cooldown = matched_mapping.get("cooldown", 0.4)
+                        act_sens = matched_mapping.get("sensitivity", 1.0)
                         
-                    elif action_type == "drag":
-                        # Continuous Drag
-                        cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
-                        self.executor.execute("drag", act_params, act_cooldown, "drag")
-                        action_executed_name = "Text Selection / Drag"
+                        # Pointer index landmark (Joint 8 tip of index finger)
+                        index_tip = landmarks[8]
                         
-                    elif action_type in ["left_click", "right_click", "double_click", "scroll", "shortcut", "media", "app_launch"]:
-                        # Instant clicks / scrolls
-                        success_act = self.executor.execute(action_type, act_params, act_cooldown, action_type)
-                        if success_act:
-                            action_executed_name = matched_mapping.get("action_name", action_type)
+                        # Update sensitivity factor on cursor controller
+                        self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
+                        
+                        if action_type == "move":
+                            # Smooth movement LERP
+                            cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
+                            action_executed_name = "Pointer Movement"
+                            
+                        elif action_type == "drag":
+                            # Continuous Drag
+                            cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
+                            self.executor.execute("drag", act_params, act_cooldown, "drag")
+                            action_executed_name = "Text Selection / Drag"
+                            
+                        elif action_type in ["left_click", "right_click", "double_click", "scroll", "shortcut", "media", "app_launch"]:
+                            # Instant clicks / scrolls
+                            success_act = self.executor.execute(action_type, act_params, act_cooldown, action_type)
+                            if success_act:
+                                action_executed_name = matched_mapping.get("action_name", action_type)
                             
                 # 5. Continuous Landmark Seeding/Dataset record
                 if self.feed_mode and self.feed_gesture_key:
@@ -372,6 +394,7 @@ class VisionEngine:
                         }))
             else:
                 self.executor.terminate_continuous_actions()
+                self.prev_thumb_y = None
                 
             t_action = (time.time() - t_action_start) * 1000
             
