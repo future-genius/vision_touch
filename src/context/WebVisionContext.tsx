@@ -188,13 +188,19 @@ export function WebVisionProvider({ children }: { children: ReactNode }) {
 
       const initPromise = (async () => {
         // Request camera permission with facing mode
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            width: { ideal: 640 }, 
-            height: { ideal: 480 }, 
-            facingMode: facingMode
-          }
-        });
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { 
+              width: { ideal: 640 }, 
+              height: { ideal: 480 }, 
+              facingMode: facingMode
+            }
+          });
+        } catch (constraintError) {
+          console.warn("Camera constraint failed, falling back to default video stream:", constraintError);
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        }
         
         streamRef.current = stream;
         setCameraStream(stream);
