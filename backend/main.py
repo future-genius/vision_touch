@@ -22,6 +22,9 @@ async def main():
     # Instantiate the unified ML vision engine
     engine = VisionEngine(debug_mode=debug)
     
+    # Automatically start CV2 camera capture stream on boot for autonomous desktop tracking
+    engine.start_capture()
+    
     # Run the WebSocket server broadcast loop forever
     await engine.ws.start()
 
