@@ -321,6 +321,7 @@ class VisionEngine:
             
             # Mirror frame
             frame = cv2.flip(frame, 1)
+            frame = np.ascontiguousarray(frame)
             
             # 2. Hand Tracking
             t_track_start = time.time()
