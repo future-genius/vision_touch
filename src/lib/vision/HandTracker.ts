@@ -17,7 +17,7 @@ export class HandTracker {
         // Try with GPU hardware acceleration and sensitive thresholds
         this.landmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "/hand_landmarker.task",
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
             delegate: "GPU"
           },
           runningMode: "VIDEO",
@@ -31,7 +31,7 @@ export class HandTracker {
         // Fallback to CPU execution
         this.landmarker = await HandLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "/hand_landmarker.task",
+            modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
             delegate: "CPU"
           },
           runningMode: "VIDEO",
