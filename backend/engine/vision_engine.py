@@ -421,13 +421,20 @@ class VisionEngine:
                             landmark_vectors=landmarks,
                             sample_quality=confidence/100.0 if confidence > 0 else 0.95
                         )
-                        loop.run_until_complete(self.ws.broadcast({
+                        ds_payload = {
                             "type": "dataset_uploaded",
                             "data": {
                                 "gesture_key": self.feed_gesture_key,
                                 "samples_count": 1
                             }
-                        }))
+                        }
+                        if hasattr(self.ws, "loop") and self.ws.loop and self.ws.loop.is_running():
+                            asyncio.run_coroutine_threadsafe(self.ws.broadcast(ds_payload), self.ws.loop)
+                        else:
+                            try:
+                                loop.run_until_complete(self.ws.broadcast(ds_payload))
+                            except Exception:
+                                pass
             else:
                 self.executor.terminate_continuous_actions()
                 self.prev_thumb_y = None
@@ -464,7 +471,13 @@ class VisionEngine:
                     "feedGestureKey": self.feed_gesture_key
                 }
             }
-            loop.run_until_complete(self.ws.broadcast(payload))
+            if hasattr(self.ws, "loop") and self.ws.loop and self.ws.loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.ws.broadcast(payload), self.ws.loop)
+            else:
+                try:
+                    loop.run_until_complete(self.ws.broadcast(payload))
+                except Exception:
+                    pass
             t_broadcast = (time.time() - t_broadcast_start) * 1000
             
             # Debug Profiling logs

@@ -10,6 +10,7 @@ class WsServer:
         self.host = settings.WEBSOCKET_HOST
         self.clients = set()
         self.engine = None # Reference to VisionEngine orchestration instance
+        self.loop = None
 
     def set_engine(self, engine):
         self.engine = engine
@@ -172,6 +173,7 @@ class WsServer:
             await self.unregister(websocket)
 
     async def start(self):
+        self.loop = asyncio.get_running_loop()
         print(f"[WebSocket] Starting WebSocket server on ws://{self.host}:{self.port} ...")
         async with websockets.serve(self.handle_message, self.host, self.port):
             await asyncio.Future() # run forever
