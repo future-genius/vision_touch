@@ -198,19 +198,23 @@ class VisionEngine:
             for index in [0, 1, 2, 3]:
                 try:
                     cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
-                    if cap and cap.isOpened():
-                        success, test_frame = cap.read()
-                        if success and test_frame is not None:
-                            mean_val = np.mean(test_frame)
-                            print(f"[Engine] Testing camera index {index}... Mean brightness: {mean_val:.1f}")
-                            if mean_val > 8.0:
-                                print(f"[Engine] Camera index {index} verified successfully as active color source! (Frame shape: {test_frame.shape})")
-                                working_index = index
-                                cap.release()
-                                break
-                            else:
-                                print(f"[Engine] Camera index {index} is a black stream (mean: {mean_val:.1f}). Scanning next camera...")
-                        cap.release()
+                    if not cap or not cap.isOpened():
+                        if index == 0:
+                            print("\n[Engine] ⚠️ WARNING: Primary webcam (Index 0) failed to open! It is likely locked/in-use by another application (such as Chrome running your Netlify tab, Zoom, or Teams). Please close other camera apps to allow the Python backend to take control.")
+                        continue
+                        
+                    success, test_frame = cap.read()
+                    if success and test_frame is not None:
+                        mean_val = np.mean(test_frame)
+                        print(f"[Engine] Testing camera index {index}... Mean brightness: {mean_val:.1f}")
+                        if mean_val > 8.0:
+                            print(f"[Engine] Camera index {index} verified successfully as active color source! (Frame shape: {test_frame.shape})")
+                            working_index = index
+                            cap.release()
+                            break
+                        else:
+                            print(f"[Engine] Camera index {index} is a black stream (mean: {mean_val:.1f}). Scanning next camera...")
+                    cap.release()
                 except Exception as cam_err:
                     print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
                 
