@@ -26,25 +26,47 @@ class Camera:
         """
         Attempts to open a camera and set options. Fail-fast if camera is unavailable.
         """
-        # If camera_index is specified, try only that one
-        indices_to_try = [self.camera_index] if self.camera_index is not None else [0, 1]
+        # If camera_index is specified, try only that one. Otherwise check indices 0 to 4.
+        indices_to_try = [self.camera_index] if self.camera_index is not None else [0, 1, 2, 3, 4]
+        
+        selected_cap = None
+        selected_index = None
+        backup_cap = None
+        backup_index = None
         
         for index in indices_to_try:
             logger.info(f"Checking camera index {index}...")
-            # Try to use CAP_DSHOW on Windows for fast init; fallback if fail
             if os.name == 'nt':
                 cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
             else:
                 cap = cv2.VideoCapture(index)
                 
             if cap is not None and cap.isOpened():
+                # Configure settings BEFORE reading the first frame to avoid renegotiation glitches on Windows
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+                cap.set(cv2.CAP_PROP_FPS, self.target_fps)
+                
                 # Test read
                 ret, frame = cap.read()
                 if ret and frame is not None:
-                    self.cap = cap
-                    self.actual_index = index
-                    logger.info(f"Verified and opened camera index {index} successfully.")
-                    break
+                    brightness = float(frame.mean())
+                    logger.info(f"Camera index {index} opened. Mean brightness: {brightness:.2f}")
+                    
+                    # If the frame has actual content (not solid black / empty virtual driver)
+                    if brightness >= 2.0:
+                        selected_cap = cap
+                        selected_index = index
+                        logger.info(f"Found active physical camera source at index {index}.")
+                        break
+                    else:
+                        # Keep the first opened black camera as a fallback option
+                        if backup_cap is None:
+                            backup_cap = cap
+                            backup_index = index
+                            logger.warning(f"Camera index {index} returns black frames; holding as fallback.")
+                        else:
+                            cap.release()
                 else:
                     cap.release()
                     logger.warning(f"Camera index {index} opened but could not read frame (in-use or invalid).")
@@ -53,13 +75,26 @@ class Camera:
                     cap.release()
                 logger.warning(f"Camera index {index} failed to open.")
 
+        # Decide which camera source to bind
+        if selected_cap is not None:
+            self.cap = selected_cap
+            self.actual_index = selected_index
+            if backup_cap is not None:
+                backup_cap.release()
+        elif backup_cap is not None:
+            self.cap = backup_cap
+            self.actual_index = backup_index
+            logger.warning(f"No active camera had light; falling back to index {backup_index} (which returned black/empty frames).")
+        else:
+            self.cap = None
+
         if self.cap is None:
             # Clear explanation of error for the user
             err_msg = (
                 "\n======================================================================\n"
                 "[ERROR] CAMERA UNAVAILABLE!\n"
                 "----------------------------------------------------------------------\n"
-                "Could not open any active, working camera source (Tried index 0, 1).\n"
+                f"Could not open any active, working camera source (Tried indices {indices_to_try}).\n"
                 "Please verify that:\n"
                 "  1. A physical webcam is connected to your system.\n"
                 "  2. No other application (Chrome, Teams, Zoom, etc.) is using the webcam.\n"
@@ -69,15 +104,10 @@ class Camera:
             logger.error(err_msg)
             raise RuntimeError("Camera unavailable")
 
-        # Configure settings
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self.cap.set(cv2.CAP_PROP_FPS, self.target_fps)
-        
         # Query actual width and height to confirm
         actual_w = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
         actual_h = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        logger.info(f"Webcam resolution configured: {actual_w}x{actual_h} at {self.target_fps} FPS.")
+        logger.info(f"Webcam resolution configured: {actual_w}x{actual_h} at {self.target_fps} FPS on camera index {self.actual_index}.")
 
     def start(self):
         """
