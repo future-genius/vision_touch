@@ -83,30 +83,32 @@ class CursorController:
         self.history.append((target_x, target_y))
         if len(self.history) > self.history_window:
             self.history.pop(0)
-
+ 
         avg_x = sum(pt[0] for pt in self.history) / len(self.history)
         avg_y = sum(pt[1] for pt in self.history) / len(self.history)
-
+ 
+        # Query the actual physical cursor position on every frame to prevent desync snap-backs
+        current_phys_x, current_phys_y = pyautogui.position()
+        self.prev_x = current_phys_x
+        self.prev_y = current_phys_y
+ 
         # 3. Dynamic Velocity-LERP Calculation
         now = time.time()
         dt = max(0.001, now - self.last_time)
         self.last_time = now
-
+ 
         dx = avg_x - self.prev_x
         dy = avg_y - self.prev_y
         dist = (dx**2 + dy**2)**0.5
-
+ 
         # Ignore tiny changes inside deadzone to keep the cursor completely stable
-        # Deadzone matches screen resolution scaling
         scaled_deadzone = self.dead_zone * self.screen_width * 0.005
         if dist < scaled_deadzone:
             return self.prev_x, self.prev_y
-
+ 
         velocity = dist / dt
-
+ 
         # Dynamically scale smoothing factor relative to move speed:
-        # High speed -> Less smoothing (high responsiveness)
-        # Slow speed -> High smoothing (perfect clicking stability)
         if velocity < 150:
             adaptive_smoothing = min(0.88, self.smoothing * 1.3)
         elif velocity > 800:
@@ -114,16 +116,17 @@ class CursorController:
         else:
             factor = (velocity - 150) / 650.0
             adaptive_smoothing = self.smoothing - (self.smoothing * 0.65 * factor)
-
-        lerp_factor = 1.0 - adaptive_smoothing
-
+ 
         # Acceleration for faster sweep flicks
         acceleration = 1.0
         if velocity > 1200:
             acceleration = 1.25
-
-        new_x = int(self.prev_x + dx * lerp_factor * self.sensitivity * acceleration)
-        new_y = int(self.prev_y + dy * lerp_factor * self.sensitivity * acceleration)
+ 
+        # Limit LERP factor to 1.0 to prevent system feedback oscillations/jitter
+        lerp_factor = min(1.0, (1.0 - adaptive_smoothing) * self.sensitivity * acceleration)
+ 
+        new_x = int(self.prev_x + dx * lerp_factor)
+        new_y = int(self.prev_y + dy * lerp_factor)
 
         # Re-clamping inside borders
         new_x = max(0, min(self.screen_width - 1, new_x))
