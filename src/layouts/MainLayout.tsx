@@ -3,10 +3,12 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/navigation/Sidebar';
 import { Menu, X, Camera, CameraOff, Loader2 } from 'lucide-react';
 import { useWebVision } from '../context/WebVisionContext';
+import { useAiStream } from '../hooks/useAiStream';
 
 export function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isActive, isInitializing, startCamera, stopCamera, error } = useWebVision();
+  const { isConnected } = useAiStream();
 
   return (
     <div className="flex h-screen bg-background relative">
@@ -54,7 +56,7 @@ export function MainLayout() {
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
           <div className="max-w-7xl mx-auto space-y-6">
-            {error && (
+            {error && !isConnected && (
               <div className="bg-error/10 border border-error/20 text-error p-4 rounded-2xl text-sm font-semibold flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-error animate-ping" />
                 <p>{error}</p>

@@ -228,50 +228,52 @@ export function LiveCameraFeed() {
       </div>
 
       <div className="relative flex-1 bg-slate-950 rounded-2xl overflow-hidden min-h-[400px] flex items-center justify-center shadow-inner group">
-        {cameraError ? (
-          <div className="text-error text-sm font-bold p-8 text-center bg-error/5 rounded-2xl border border-error/10 max-w-xs">
-            <Activity className="w-8 h-8 mx-auto mb-3 opacity-50" />
-            {cameraError}
-          </div>
-        ) : (
-          <>
-            {/* Premium Animated High-Tech Neural Grid Background */}
-            {isCameraActive && (
-              <div className="absolute inset-0 bg-slate-950 overflow-hidden pointer-events-none">
-                {/* Radial Grid */}
-                <div 
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage: 'radial-gradient(circle, #3B82F6 1.5px, transparent 1.5px)',
-                    backgroundSize: '32px 32px'
-                  }}
-                />
-                
-                {/* Animated Horizontal Scanline Sweep */}
-                <div 
-                  className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-40 shadow-[0_0_12px_#3B82F6]" 
-                  style={{
-                    animation: 'scan 4s linear infinite',
-                    top: '0%'
-                  }}
-                />
+        <>
+          {/* Premium Animated High-Tech Neural Grid Background */}
+          {isCameraActive && (
+            <div className="absolute inset-0 bg-slate-950 overflow-hidden pointer-events-none">
+              {/* Radial Grid */}
+              <div 
+                className="absolute inset-0 opacity-20"
+                style={{
+                  backgroundImage: 'radial-gradient(circle, #3B82F6 1.5px, transparent 1.5px)',
+                  backgroundSize: '32px 32px'
+                }}
+              />
+              
+              {/* Animated Horizontal Scanline Sweep */}
+              <div 
+                className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-40 shadow-[0_0_12px_#3B82F6]" 
+                style={{
+                  animation: 'scan 4s linear infinite',
+                  top: '0%'
+                }}
+              />
 
-                {/* Cyber Target Rings */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 border border-primary/10 rounded-full animate-[spin_30s_linear_infinite]" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-dashed border-primary/20 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-primary/5 rounded-full" />
-              </div>
-            )}
-            
-            <canvas 
-              ref={canvasRef}
-              width={1280}
-              height={720}
-              className="absolute inset-0 w-full h-full object-cover pointer-events-none transform -scale-x-100"
-            />
+              {/* Cyber Target Rings */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 border border-primary/10 rounded-full animate-[spin_30s_linear_infinite]" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border border-dashed border-primary/20 rounded-full animate-[spin_15s_linear_infinite_reverse]" />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 border border-primary/5 rounded-full" />
+            </div>
+          )}
+          
+          <canvas 
+            ref={canvasRef}
+            width={1280}
+            height={720}
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none transform -scale-x-100"
+          />
 
-            {/* Live Skeletal Tracking HUD Overlay */}
-            <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between z-10">
+          {/* If webcam is locked by backend, show status badge instead of error screen */}
+          {cameraError && isConnected && (
+            <div className="absolute top-16 left-6 z-20 flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 backdrop-blur-md rounded-lg border border-amber-500/20 text-amber-400 text-[10px] font-black uppercase tracking-widest animate-pulse">
+              <Activity className="w-3.5 h-3.5" />
+              Direct OS Feed (Webcam Shared via WebSocket)
+            </div>
+          )}
+
+          {/* Live Skeletal Tracking HUD Overlay */}
+          <div className="absolute inset-0 pointer-events-none p-6 flex flex-col justify-between z-10">
               <div className="flex justify-between items-start">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-lg border border-white/10">
@@ -335,7 +337,6 @@ export function LiveCameraFeed() {
               </div>
             </div>
           </>
-        )}
       </div>
     </div>
   );
