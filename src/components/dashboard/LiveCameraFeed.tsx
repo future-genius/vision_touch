@@ -105,12 +105,11 @@ export function LiveCameraFeed() {
   // Clean up on component unmount
   useEffect(() => {
     return () => {
-      disconnectEngine();
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [disconnectEngine]);
+  }, []);
 
   // Real-time Skeletal Rendering Canvas Loop
   useEffect(() => {
