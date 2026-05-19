@@ -8,8 +8,8 @@ from backend.core.utils import WORKSPACE_ROOT, HAND_LANDMARKER_TASK_PATH
 
 class HandTracker:
     def __init__(self, max_num_hands=1, min_detection_confidence=0.45, min_tracking_confidence=0.45):
-        # Determine if we should use modern Tasks API or legacy Solutions
-        self.use_tasks = not hasattr(mp, "solutions") or not hasattr(mp.solutions, "hands")
+        # Always use modern Tasks API for consistency and compatibility
+        self.use_tasks = True
         
         if self.use_tasks:
             logger.info("Initializing modern MediaPipe Tasks HandLandmarker...")
