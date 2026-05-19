@@ -49,23 +49,41 @@ export function GestureDetectionPanel() {
 
         <div className="grid grid-cols-2 gap-4">
           <div className="p-4 bg-background rounded-2xl border border-accent flex flex-col items-center justify-center text-center group hover:border-primary/20 transition-colors">
-            <Hexagon className="w-5 h-5 text-primary mb-2" />
-            <span className="text-xl font-black text-primary">{isActive ? data.landmarkCount : 0}</span>
+            <Hexagon className="w-5 h-5 text-primary mb-1" />
+            <span className="text-lg font-black text-primary">{isActive ? data.landmarkCount : 0}</span>
             <span className="text-[10px] text-text-secondary font-black uppercase">Landmarks</span>
           </div>
           <div className="p-4 bg-background rounded-2xl border border-accent flex flex-col items-center justify-center text-center group hover:border-primary/20 transition-colors">
-            <Zap className="w-5 h-5 text-primary mb-2" />
-            <span className="text-xl font-black text-primary">{isActive ? data.inferenceTimeMs.toFixed(1) : '0.0'} ms</span>
-            <span className="text-[10px] text-text-secondary font-black uppercase">Inference</span>
+            <Zap className="w-5 h-5 text-primary mb-1" />
+            <span className="text-lg font-black text-primary">{isActive ? data.inferenceTimeMs.toFixed(1) : '0.0'} ms</span>
+            <span className="text-[10px] text-text-secondary font-black uppercase">Latency</span>
           </div>
+          <div className="p-4 bg-background rounded-2xl border border-accent flex flex-col items-center justify-center text-center group hover:border-primary/20 transition-colors">
+            <Activity className="w-5 h-5 text-success mb-1" />
+            <span className="text-lg font-black text-primary">{isActive ? data.fps : 0} Hz</span>
+            <span className="text-[10px] text-text-secondary font-black uppercase">Framerate</span>
+          </div>
+          <div className="p-4 bg-background rounded-2xl border border-accent flex flex-col items-center justify-center text-center group hover:border-primary/20 transition-colors">
+            <span className="text-xs font-black text-primary mt-1 mb-2">
+              X: {isActive ? data.cursorX : 0} <br /> Y: {isActive ? data.cursorY : 0}
+            </span>
+            <span className="text-[10px] text-text-secondary font-black uppercase">Position</span>
+          </div>
+        </div>
+
+        <div className="p-4 bg-accent/40 rounded-2xl border border-accent flex flex-col items-center justify-center text-center">
+          <span className="text-[10px] text-text-secondary font-black uppercase tracking-widest mb-1">Execution Action</span>
+          <span className="text-sm font-black text-primary uppercase">
+            {isActive && data.actionState ? data.actionState : 'Idle'}
+          </span>
         </div>
 
         <div className="pt-6 border-t border-accent flex items-center justify-between">
            <span className="text-[10px] font-black text-text-secondary flex items-center gap-2 uppercase tracking-widest">
-              <Activity className="w-4 h-4" /> Model Status
+              <Activity className="w-4 h-4" /> Engine Status
            </span>
            <span className="text-[10px] font-black bg-primary/5 text-primary px-3 py-1 rounded-full border border-primary/10">
-             MediaPipe ResNet50
+             Hybrid Heuristic-ML
            </span>
         </div>
       </div>

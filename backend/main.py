@@ -298,16 +298,23 @@ class EngineRunner:
                 gesture_name = stabilized_gesture
                 
                 # 2. Execute actions & pointer movement
-                if stabilized_gesture != "FIST":
+                if stabilized_gesture in ["OPEN_PALM", "INDEX_THUMB_PINCH"]:
                     index_tip = landmarks[8]
-                    # Direct cursor movement
+                    # Direct cursor movement only during move or drag
                     cursor_x, cursor_y = self.mouse_controller.move_to(index_tip["x"], index_tip["y"])
-                    action_state = "Pointer Movement"
+                    action_state = "Pointer Movement" if stabilized_gesture == "OPEN_PALM" else "Text Selection / Drag"
                 else:
-                    action_state = "Paused"
-                    self.mouse_controller.release_all()
+                    # Keep cursor at previous position for clicking, scrolling, and system controls
+                    cursor_x, cursor_y = self.mouse_controller.prev_x, self.mouse_controller.prev_y
+                    if stabilized_gesture == "FIST":
+                        action_state = "Paused"
+                        self.mouse_controller.release_all()
+                    else:
+                        action_state = "Pointer Stationary"
 
-                action_state = self.gesture_engine.execute_action(stabilized_gesture, landmarks, self.mouse_controller)
+                action_name = self.gesture_engine.execute_action(stabilized_gesture, landmarks, self.mouse_controller)
+                if action_name and action_name != "None":
+                    action_state = action_name
 
                 # 3. Database feeding record
                 if self.feed_mode and self.feed_gesture_key:
