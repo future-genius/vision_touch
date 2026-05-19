@@ -96,15 +96,21 @@ export function LiveCameraFeed() {
     }
   }, [isConnected]);
 
+  // Keep localStream in a ref to avoid re-triggering cleanup on state updates
+  const localStreamRef = useRef<MediaStream | null>(null);
+  useEffect(() => {
+    localStreamRef.current = localStream;
+  }, [localStream]);
+
   // Clean up on component unmount
   useEffect(() => {
     return () => {
       disconnectEngine();
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [disconnectEngine, localStream]);
+  }, [disconnectEngine]);
 
   // Real-time Skeletal Rendering Canvas Loop
   useEffect(() => {
