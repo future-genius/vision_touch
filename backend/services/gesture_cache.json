@@ -1,19 +1,5 @@
 [
     {
-        "gesture_id": "18578752-3401-4031-9a6a-74613d85de62",
-        "gesture_name": "Index Pointer",
-        "gesture_key": "index_pointer",
-        "gesture_icon": "MousePointer2",
-        "confidence_threshold": 0.65,
-        "action_id": "5cd49d7d-ebcb-45c9-b549-ef4be57f76f4",
-        "action_name": "Pointer Movement",
-        "action_type": "move",
-        "action_parameters": {},
-        "execution_mode": "continuous",
-        "sensitivity": 1.5,
-        "cooldown": 0.2
-    },
-    {
         "gesture_id": "2afddfa2-c65a-419f-a8f9-5c2ad1f06daf",
         "gesture_name": "Pinch / Click",
         "gesture_key": "pinch_click",
@@ -39,6 +25,20 @@
         "action_parameters": {},
         "execution_mode": "continuous",
         "sensitivity": 1.2,
+        "cooldown": 0.3
+    },
+    {
+        "gesture_id": "18578752-3401-4031-9a6a-74613d85de62",
+        "gesture_name": "Index Pointer",
+        "gesture_key": "index_pointer",
+        "gesture_icon": "MousePointer2",
+        "confidence_threshold": 0.65,
+        "action_id": "5cd49d7d-ebcb-45c9-b549-ef4be57f76f4",
+        "action_name": "Pointer Movement",
+        "action_type": "move",
+        "action_parameters": {},
+        "execution_mode": "continuous",
+        "sensitivity": 1.5,
         "cooldown": 0.3
     }
 ]

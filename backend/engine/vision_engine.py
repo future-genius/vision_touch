@@ -23,7 +23,7 @@ import pickle
 import numpy as np
 from backend.config import settings
 from backend.tracking.hand_tracker import HandTracker
-from backend.engine.cursor_controller import CursorController
+from backend.engine.cursor_controller import CursorController, get_windows_cursor_pos, IS_WINDOWS
 from backend.engine.gesture_executor import ActionExecutor
 from backend.engine.websocket_server import WsServer
 from backend.services.db_service import DbService
@@ -36,15 +36,22 @@ class ThreadedVideoCapture:
         else:
             self.cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
             
+        # Optimize camera resolution to 640x480 (sweet spot for real-time tracking)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        
         self.grabbed = False
         self.frame = None
         self.is_running = False
+        self.frame_id = 0
         self.read_lock = threading.Lock()
         
     def start(self):
         if self.cap.isOpened():
             self.grabbed, self.frame = self.cap.read()
             self.is_running = True
+            self.frame_id = 1
             self.thread = threading.Thread(target=self.update, args=())
             self.thread.daemon = True
             self.thread.start()
@@ -58,13 +65,16 @@ class ThreadedVideoCapture:
                     with self.read_lock:
                         self.grabbed = grabbed
                         self.frame = frame
-            time.sleep(0.005) # Prevent CPU starvation
+                        self.frame_id += 1
+                else:
+                    time.sleep(0.01) # Wait if frame not grabbed to prevent CPU spin
+            else:
+                time.sleep(0.1) # Wait if camera closed
             
     def read(self):
         with self.read_lock:
-            if self.frame is not None:
-                return self.grabbed, self.frame.copy()
-            return self.grabbed, None
+            # Return raw frame (no copy) and frame_id to save CPU and check for updates
+            return self.grabbed, self.frame, self.frame_id
             
     def isOpened(self):
         return self.cap.isOpened()
@@ -279,19 +289,22 @@ class VisionEngine:
         return "None"
 
     def run_capture_loop(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
         fps = 0
         last_time = time.time()
         consecutive_failures = 0
         frame_counter = 0
+        last_fid = -1
         
         while self.is_running and self.cap:
             start_frame_time = time.time()
             
-            # 1. Read Frame
-            success, frame = self.cap.read()
+            # 1. Read Frame (checking frame_id to avoid duplicate processing)
+            success, frame, fid = self.cap.read()
+            if success and fid == last_fid:
+                time.sleep(0.001) # Yield thread briefly to prevent busy waiting
+                continue
+            last_fid = fid
+            
             t_read = (time.time() - start_frame_time) * 1000
             
             if not success or frame is None:
@@ -303,6 +316,7 @@ class VisionEngine:
                     self.cap = ThreadedVideoCapture(self.working_index)
                     self.cap.start()
                     consecutive_failures = 0
+                    last_fid = -1
                 time.sleep(0.01)
                 continue
                 
@@ -321,7 +335,7 @@ class VisionEngine:
             # Inference state variables
             predicted_label = "None"
             confidence = 0.0
-            cursor_x, cursor_y = pyautogui.position()
+            cursor_x, cursor_y = get_windows_cursor_pos() if IS_WINDOWS else pyautogui.position()
             action_executed_name = "None"
             
             # 3. Model Prediction and Stabilization
@@ -329,72 +343,79 @@ class VisionEngine:
             if tracking_status == "Active" and landmarks:
                 raw_pred, raw_conf = self.predict_gesture(landmarks)
                 
-                # Filter out low-confidence predictions to prevent false positives
-                if raw_conf >= 55.0:
+                # Fetch confidence threshold dynamically from the mapping config
+                matched_mapping = self.find_action_mapping(raw_pred)
+                threshold = 55.0
+                if matched_mapping:
+                    threshold = matched_mapping.get("confidence_threshold", 0.55) * 100.0
+                
+                # Filter out low-confidence predictions
+                if raw_conf >= threshold:
                     predicted_label = self.get_stabilized_gesture(raw_pred)
                     confidence = raw_conf
+                else:
+                    predicted_label = self.get_stabilized_gesture("None")
             else:
                 self.gesture_history.clear()
                 self.executor.terminate_continuous_actions()
             t_classify = (time.time() - t_classify_start) * 1000
             
-            # 4. Action Dispatching & Cursor Moving
+            # 4. Pointer Movement & Action Execution
             t_action_start = time.time()
             if tracking_status == "Active" and landmarks:
-                # Find matching dynamic action
-                matched_mapping = self.find_action_mapping(predicted_label)
+                # 1. Update cursor pointer position first (unless the gesture is FIST which pauses all actions)
+                if predicted_label != "FIST":
+                    index_tip = landmarks[8]
+                    matched_mapping = self.find_action_mapping(predicted_label)
+                    act_sens = matched_mapping.get("sensitivity", 1.0) if matched_mapping else 1.0
+                    self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
+                    cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
+                    action_executed_name = "Pointer Movement"
+                else:
+                    action_executed_name = "Paused"
+                    self.executor.terminate_continuous_actions()
                 
-                # Check for dynamic real-time scrolling intercept
+                # 2. Reset the executor last_gesture if current gesture changed from instant actions
+                if predicted_label != self.executor.last_gesture:
+                    if predicted_label in ["None", "OPEN_PALM", "FIST"]:
+                        self.executor.last_gesture = None
+
+                # 3. Execute actions corresponding to current gesture
+                matched_mapping = self.find_action_mapping(predicted_label)
                 if predicted_label == "THUMB_ONLY":
-                    # Dynamic y-coordinate scrolling (Thumb tip Joint 4)
                     thumb_tip = landmarks[4]
                     current_y = thumb_tip["y"]
-                    
                     if self.prev_thumb_y is not None:
                         y_diff = current_y - self.prev_thumb_y
-                        # Threshold of 0.012 filters out hand micro-shaking
                         if abs(y_diff) > 0.012:
                             direction = "up" if y_diff < 0 else "down"
                             scroll_amount = int(abs(y_diff) * 200)
                             scroll_params = {"direction": direction, "amount": scroll_amount}
-                            self.executor.execute("scroll", scroll_params, 0.03, "scroll")
+                            self.executor.execute("scroll", scroll_params, 0.03, "scroll", gesture_key=predicted_label)
                             action_executed_name = f"Scroll {direction.upper()}"
                     self.prev_thumb_y = current_y
                 else:
                     self.prev_thumb_y = None
+
+                # Make sure we release dragging if the current action is not drag
+                # This fixes the mouse lockup problem!
+                is_drag_active = (matched_mapping and matched_mapping.get("action_type") == "drag")
+                if not is_drag_active and self.executor.is_dragging:
+                    self.executor.terminate_continuous_actions()
+
+                # Process other action types
+                if matched_mapping and predicted_label not in ["None", "OPEN_PALM", "FIST", "THUMB_ONLY"]:
+                    action_type = matched_mapping.get("action_type")
+                    act_params = matched_mapping.get("action_parameters", {})
+                    act_cooldown = matched_mapping.get("cooldown", 0.4)
                     
-                    # Heuristic Fallback: If no mapping is found or if it is a move/None gesture,
-                    # guarantee that pointer movement is executed so the cursor never freezes!
-                    if not matched_mapping or matched_mapping.get("action_type") == "move" or predicted_label in ["None", "OPEN_PALM"]:
-                        # Smooth movement LERP using index tip (Joint 8)
-                        index_tip = landmarks[8]
-                        act_sens = matched_mapping.get("sensitivity", 1.0) if matched_mapping else 1.0
-                        self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
-                        cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
-                        action_executed_name = "Pointer Movement"
-                    else:
-                        action_type = matched_mapping.get("action_type")
-                        act_params = matched_mapping.get("action_parameters", {})
-                        act_cooldown = matched_mapping.get("cooldown", 0.4)
-                        act_sens = matched_mapping.get("sensitivity", 1.0)
-                        
-                        # Pointer index landmark (Joint 8 tip of index finger)
-                        index_tip = landmarks[8]
-                        
-                        # Update sensitivity factor on cursor controller
-                        self.cursor.sensitivity = settings.CURSOR_DEFAULT_SENSITIVITY * act_sens
-                        
-                        if action_type == "drag":
-                            # Continuous Drag
-                            cursor_x, cursor_y = self.cursor.move_to(index_tip["x"], index_tip["y"])
-                            self.executor.execute("drag", act_params, act_cooldown, "drag")
-                            action_executed_name = "Text Selection / Drag"
-                            
-                        elif action_type in ["left_click", "right_click", "double_click", "scroll", "shortcut", "media", "app_launch"]:
-                            # Instant clicks / scrolls
-                            success_act = self.executor.execute(action_type, act_params, act_cooldown, action_type)
-                            if success_act:
-                                action_executed_name = matched_mapping.get("action_name", action_type)
+                    if action_type == "drag":
+                        self.executor.execute("drag", act_params, act_cooldown, "drag", gesture_key=predicted_label)
+                        action_executed_name = "Text Selection / Drag"
+                    elif action_type in ["left_click", "right_click", "double_click", "scroll", "shortcut", "media", "app_launch"]:
+                        success_act = self.executor.execute(action_type, act_params, act_cooldown, action_type, gesture_key=predicted_label)
+                        if success_act:
+                            action_executed_name = matched_mapping.get("action_name", action_type)
                             
                 # 5. Continuous Landmark Seeding/Dataset record
                 if self.feed_mode and self.feed_gesture_key:
@@ -414,13 +435,9 @@ class VisionEngine:
                                 "samples_count": 1
                             }
                         }
-                        if hasattr(self.ws, "loop") and self.ws.loop and self.ws.loop.is_running():
-                            asyncio.run_coroutine_threadsafe(self.ws.broadcast(ds_payload), self.ws.loop)
-                        else:
-                            try:
-                                loop.run_until_complete(self.ws.broadcast(ds_payload))
-                            except Exception:
-                                pass
+                        if self.ws.clients and hasattr(self.ws, "loop") and self.ws.loop and self.ws.loop.is_running():
+                            message = json.dumps(ds_payload)
+                            asyncio.run_coroutine_threadsafe(self.ws.broadcast_raw(message), self.ws.loop)
             else:
                 self.executor.terminate_continuous_actions()
                 self.prev_thumb_y = None
@@ -439,44 +456,36 @@ class VisionEngine:
 
             # 6. Broadcast Synchronized Telemetry
             t_broadcast_start = time.time()
-            payload = {
-                "type": "hand_landmarks",
-                "data": {
-                    "gesture": human_gesture_name,
-                    "gesture_key": predicted_label,
-                    "confidence": confidence,
-                    "fps": fps,
-                    "landmarkCount": len(landmarks),
-                    "landmarks": landmarks,
-                    "inferenceTimeMs": inference_time,
-                    "trackingStatus": tracking_status,
-                    "cursorX": cursor_x,
-                    "cursorY": cursor_y,
-                    "actionState": action_executed_name,
-                    "isFeeding": self.feed_mode,
-                    "feedGestureKey": self.feed_gesture_key
+            if self.ws.clients and hasattr(self.ws, "loop") and self.ws.loop and self.ws.loop.is_running():
+                payload = {
+                    "type": "hand_landmarks",
+                    "data": {
+                        "gesture": human_gesture_name,
+                        "gesture_key": predicted_label,
+                        "confidence": confidence,
+                        "fps": fps,
+                        "landmarkCount": len(landmarks),
+                        "landmarks": landmarks,
+                        "inferenceTimeMs": inference_time,
+                        "trackingStatus": tracking_status,
+                        "cursorX": cursor_x,
+                        "cursorY": cursor_y,
+                        "actionState": action_executed_name,
+                        "isFeeding": self.feed_mode,
+                        "feedGestureKey": self.feed_gesture_key
+                    }
                 }
-            }
-            if hasattr(self.ws, "loop") and self.ws.loop and self.ws.loop.is_running():
-                asyncio.run_coroutine_threadsafe(self.ws.broadcast(payload), self.ws.loop)
-            else:
-                try:
-                    loop.run_until_complete(self.ws.broadcast(payload))
-                except Exception:
-                    pass
+                # Serialize in background thread
+                message = json.dumps(payload)
+                asyncio.run_coroutine_threadsafe(self.ws.broadcast_raw(message), self.ws.loop)
             t_broadcast = (time.time() - t_broadcast_start) * 1000
             
             # Debug Profiling logs
             if self.debug_mode and frame_counter % 30 == 0:
                 print(f"[Profiler] Loop: {inference_time:.1f}ms | Capture: {t_read:.1f}ms | MP: {t_track:.1f}ms | RandomForest: {t_classify:.1f}ms | Sync: {t_broadcast:.1f}ms")
                 
-            if self.debug_mode:
-                # Silent debug mode - performs console telemetry updates without raw window popups
-                pass
-                    
-            time.sleep(0.005)
-            
-        loop.close()
+            # Yield slightly to avoid overloading the CPU when running very fast
+            time.sleep(0.002)
 
     def find_action_mapping(self, predicted_label):
         """

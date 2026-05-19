@@ -35,19 +35,23 @@ class WsServer:
         """
         Broadcasts a serialized message payload to all connected clients.
         """
-        # Shallow snapshot list to avoid RuntimeError from set mutations in concurrent event loops
+        if not self.clients:
+            return
+        message = json.dumps(payload)
+        await self.broadcast_raw(message)
+
+    async def broadcast_raw(self, message):
+        """
+        Broadcasts a pre-serialized JSON string to all connected clients.
+        """
         active_clients = list(self.clients)
         if not active_clients:
             return
 
-        message = json.dumps(payload)
         disconnected = []
-
         for client in active_clients:
             try:
                 await client.send(message)
-            except websockets.exceptions.ConnectionClosed:
-                disconnected.append(client)
             except Exception:
                 disconnected.append(client)
 
