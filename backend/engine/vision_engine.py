@@ -182,43 +182,25 @@ class VisionEngine:
             try:
                 cap = cv2.VideoCapture(cam_index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(cam_index)
                 if cap and cap.isOpened():
-                    success, test_frame = cap.read()
-                    if success and test_frame is not None:
-                        mean_val = np.mean(test_frame)
-                        print(f"[Engine] Explicitly requested Camera index {cam_index} opened. Average brightness: {mean_val:.1f}")
-                        if mean_val < 8.0:
-                            print(f"[Engine] ⚠️ WARNING: Camera {cam_index} is completely black! Make sure privacy shutter is open.")
-                        working_index = cam_index
+                    print(f"[Engine] Explicitly requested Camera index {cam_index} opened successfully!")
+                    working_index = cam_index
                     cap.release()
             except Exception as cam_err:
                 print(f"[Engine] Testing requested camera index {cam_index} failed: {cam_err}")
-
+ 
         # If no index was provided or the selected one failed, search for first working camera (restricted to physical webcams [0, 1])
         if working_index is None:
             for index in [0, 1]:
                 try:
                     cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
-                    if not cap or not cap.isOpened():
+                    if cap and cap.isOpened():
+                        print(f"[Engine] Camera index {index} verified successfully as active source!")
+                        working_index = index
+                        cap.release()
+                        break
+                    else:
                         if index == 0:
                             print("\n[Engine] ⚠️ WARNING: Primary webcam (Index 0) failed to open! It is likely locked/in-use by another application (such as Chrome running your Netlify tab, Zoom, or Teams). Please close other camera apps to allow the Python backend to take control.")
-                        continue
-                        
-                    # Warm up the camera sensor (discard first 5 frames to let auto-exposure and gain controls initialize)
-                    for _ in range(5):
-                        cap.read()
-                        
-                    success, test_frame = cap.read()
-                    if success and test_frame is not None:
-                        mean_val = np.mean(test_frame)
-                        print(f"[Engine] Testing camera index {index}... Mean brightness: {mean_val:.1f}")
-                        if mean_val > 8.0:
-                            print(f"[Engine] Camera index {index} verified successfully as active color source! (Frame shape: {test_frame.shape})")
-                            working_index = index
-                            cap.release()
-                            break
-                        else:
-                            print(f"[Engine] Camera index {index} is a black stream (mean: {mean_val:.1f}). ⚠️ Please slide open your physical webcam privacy shutter if it is closed!")
-                    cap.release()
                 except Exception as cam_err:
                     print(f"[Engine] Testing camera {index} raised warning: {cam_err}")
                 
