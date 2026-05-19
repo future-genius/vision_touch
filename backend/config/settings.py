@@ -81,15 +81,15 @@ GESTURE_INFO = {
 }
 
 # --- Smooth Cursor Damping & Coordinate Interpolation ---
-CURSOR_DEFAULT_SENSITIVITY = 1.3
-CURSOR_DEFAULT_SMOOTHING = 0.65
-CURSOR_DEFAULT_DEAD_ZONE = 0.05
+CURSOR_DEFAULT_SENSITIVITY = 1.8
+CURSOR_DEFAULT_SMOOTHING = 0.50
+CURSOR_DEFAULT_DEAD_ZONE = 0.02
 
 # Active comfortable tracking frame box (crop out coordinates outside these ranges)
-ACTIVE_ZONE_MIN_X = 0.20
-ACTIVE_ZONE_MAX_X = 0.80
-ACTIVE_ZONE_MIN_Y = 0.15
-ACTIVE_ZONE_MAX_Y = 0.75
+ACTIVE_ZONE_MIN_X = 0.30
+ACTIVE_ZONE_MAX_X = 0.70
+ACTIVE_ZONE_MIN_Y = 0.25
+ACTIVE_ZONE_MAX_Y = 0.65
 
 # --- PyAutoGUI Performance Constants ---
 FAILSAFE = False
