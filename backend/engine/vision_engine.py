@@ -193,9 +193,9 @@ class VisionEngine:
             except Exception as cam_err:
                 print(f"[Engine] Testing requested camera index {cam_index} failed: {cam_err}")
 
-        # If no index was provided or the selected one failed, search for first working camera
+        # If no index was provided or the selected one failed, search for first working camera (restricted to physical webcams [0, 1])
         if working_index is None:
-            for index in [0, 1, 2, 3]:
+            for index in [0, 1]:
                 try:
                     cap = cv2.VideoCapture(index, cv2.CAP_DSHOW) if os.name == 'nt' else cv2.VideoCapture(index)
                     if not cap or not cap.isOpened():
