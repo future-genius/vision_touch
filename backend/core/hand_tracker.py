@@ -38,7 +38,7 @@ class HandTracker:
             base_options = python.BaseOptions(model_asset_path=model_path)
             options = vision.HandLandmarkerOptions(
                 base_options=base_options,
-                running_mode=vision.RunningMode.VIDEO,
+                running_mode=vision.RunningMode.IMAGE,
                 num_hands=max_num_hands,
                 min_hand_detection_confidence=min_detection_confidence,
                 min_hand_presence_confidence=min_detection_confidence,
@@ -69,10 +69,8 @@ class HandTracker:
             rgb_frame = np.ascontiguousarray(rgb_frame)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
             
-            timestamp_ms = int((time.time() - self.start_time) * 1000)
-            
             try:
-                result = self.detector.detect_for_video(mp_image, timestamp_ms)
+                result = self.detector.detect(mp_image)
             except Exception as e:
                 logger.error(f"MediaPipe Tasks detection error: {e}")
                 return [], "Idle", None
