@@ -110,7 +110,7 @@ class MultimodalFusion:
         words = text.split()
         
         # Valid commands list
-        commands = ["click", "double", "right", "scroll", "up", "down", "pause", "resume"]
+        commands = ["click", "double", "right", "scroll", "up", "down", "pause", "resume", "status", "dashboard"]
         
         # Check if the text matches any command
         matched_cmd = None

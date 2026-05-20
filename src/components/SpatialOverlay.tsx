@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Keyboard, Delete, CornerDownLeft, Space } from 'lucide-react';
-import { useWebVision } from '../context/WebVisionContext';
 import { useAiStream } from '../hooks/useAiStream';
 
 export function SpatialOverlay() {

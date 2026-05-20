@@ -60,7 +60,7 @@ if __name__ == "__main__":
     print("[Desktop App] Launching native window...")
     window = webview.create_window(
         title="VisionTouch - AI Gestures Controller",
-        url="https://vision-touch.netlify.app/dashboard/camera",
+        url="https://vision-touch.netlify.app/",
         width=1280,
         height=800,
         resizable=True,

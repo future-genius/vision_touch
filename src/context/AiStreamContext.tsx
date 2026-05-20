@@ -55,6 +55,8 @@ export interface AiStreamContextType {
   retrainModel: () => void;
   calibratePoint: (point: 'top_left' | 'bottom_right', x: number, y: number) => void;
   setCursorConfig: (config: { sensitivity?: number; smoothing?: number; dead_zone?: number }) => void;
+  speakStatus: () => void;
+  speakDashboard: () => void;
 }
 
 export const AiStreamContext = createContext<AiStreamContextType | undefined>(undefined);
@@ -148,6 +150,16 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setCursorConfig = useCallback((config: { sensitivity?: number; smoothing?: number; dead_zone?: number }) => {
     sendEvent('set_cursor_config', config);
     addLog(`Updating cursor sensitivity and damping configs`, 'info');
+  }, [sendEvent, addLog]);
+
+  const speakStatus = useCallback(() => {
+    sendEvent('speak_status');
+    addLog('Requesting status voice announcement...', 'info');
+  }, [sendEvent, addLog]);
+
+  const speakDashboard = useCallback(() => {
+    sendEvent('speak_dashboard');
+    addLog('Requesting dashboard diagnostics voice announcement...', 'info');
   }, [sendEvent, addLog]);
 
   const clearPendingPattern = useCallback(() => {
@@ -314,7 +326,9 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       triggerHotReload,
       retrainModel,
       calibratePoint,
-      setCursorConfig
+      setCursorConfig,
+      speakStatus,
+      speakDashboard
     }}>
       {children}
     </AiStreamContext.Provider>

@@ -16,7 +16,7 @@ if exist .venv\Scripts\python.exe (
 
 :: Launch the default web browser to the dashboard
 echo [INFO] Opening VisionTouch Web Dashboard...
-start https://vision-touch.netlify.app/dashboard/camera
+start https://vision-touch.netlify.app/
 
 :: Wait 1 second
 timeout /t 1 /nobreak > nul

@@ -10,7 +10,7 @@ class JointKalmanFilter:
     """
     1D Linear Kalman Filter with velocity tracking for smoothing landmarks.
     """
-    def __init__(self, dt=1.0/30.0, process_noise=1e-3, measurement_noise=1e-2):
+    def __init__(self, dt=1.0/30.0, process_noise=1e-2, measurement_noise=1e-3):
         self.dt = dt
         self.x = np.array([0.0, 0.0]) # [pos, vel]
         self.P = np.eye(2) * 1.0

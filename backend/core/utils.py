@@ -62,15 +62,20 @@ def map_legacy_gesture_keys(key):
     mapping = {
         "move": "OPEN_PALM",
         "index_pointer": "OPEN_PALM",
+        "open_palm": "OPEN_PALM",
         "click": "INDEX_THUMB_PINCH",
         "pinch_click": "INDEX_THUMB_PINCH",
-        "right_click": "INDEX_MIDDLE_JOINED",
+        "index_thumb_pinch": "INDEX_THUMB_PINCH",
+        "right_click": "MIDDLE_THUMB_PINCH",
+        "middle_thumb_pinch": "MIDDLE_THUMB_PINCH",
         "fist": "FIST",
-        "scroll": "THUMB_ONLY",
+        "scroll": "INDEX_MIDDLE_EXTENDED",
         "scroll_up": "INDEX_ONLY",
-        "scroll_down": "THUMB_ONLY",
+        "scroll_down": "INDEX_MIDDLE_EXTENDED",
         "index_only": "INDEX_ONLY",
-        "thumb_only": "THUMB_ONLY"
+        "index_middle_extended": "INDEX_MIDDLE_EXTENDED",
+        "index_middle_joined": "INDEX_MIDDLE_EXTENDED",
+        "two_finger_spread": "INDEX_MIDDLE_EXTENDED"
     }
     return mapping.get(key.lower(), key.upper())
 

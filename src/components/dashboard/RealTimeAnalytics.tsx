@@ -1,11 +1,34 @@
 import { useEffect, useState } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, BarChart, Bar, Cell } from 'recharts';
 import { useAiStream } from '../../hooks/useAiStream';
 import { Activity, Zap, Cpu, Compass, Mic, Monitor } from 'lucide-react';
 
 export function RealTimeAnalytics() {
   const { data } = useAiStream();
   const [history, setHistory] = useState<{ time: string; confidence: number; fps: number }[]>([]);
+  const [gestureCounts, setGestureCounts] = useState<{ [key: string]: number }>({
+    OPEN_PALM: 0,
+    INDEX_ONLY: 0,
+    INDEX_MIDDLE_EXTENDED: 0,
+    INDEX_THUMB_PINCH: 0,
+    MIDDLE_THUMB_PINCH: 0,
+    FIST: 0,
+  });
+
+  useEffect(() => {
+    if (data.gesture && data.gesture !== 'None') {
+      setGestureCounts((prev) => {
+        const key = data.gesture;
+        if (key in prev) {
+          return {
+            ...prev,
+            [key]: prev[key] + 1,
+          };
+        }
+        return prev;
+      });
+    }
+  }, [data.gesture]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -164,6 +187,105 @@ export function RealTimeAnalytics() {
                 />
               </LineChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Gesture Usage Distribution Card */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-accent col-span-1 md:col-span-2">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              Gesture Usage Distribution
+            </h2>
+            <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-1 rounded">SESSION METRICS</span>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Gesture Realtime Monitor Grid */}
+            <div className="lg:col-span-1 grid grid-cols-2 gap-3">
+              {Object.keys(gestureCounts).map((key) => {
+                const isActive = data.gesture === key;
+                const count = gestureCounts[key];
+                const displayName = key.replace(/_/g, ' ');
+                
+                const dotColorClass = {
+                  OPEN_PALM: 'bg-blue-500',
+                  INDEX_ONLY: 'bg-emerald-500',
+                  INDEX_MIDDLE_EXTENDED: 'bg-amber-500',
+                  INDEX_THUMB_PINCH: 'bg-purple-500',
+                  MIDDLE_THUMB_PINCH: 'bg-pink-500',
+                  FIST: 'bg-red-500',
+                }[key] || 'bg-slate-400';
+
+                return (
+                  <div 
+                    key={key} 
+                    className={`p-3.5 rounded-2xl border transition-all duration-300 ${isActive ? 'bg-slate-50 border-primary scale-[1.02] shadow-sm' : 'bg-white border-accent'}`}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-bold text-text-secondary truncate block w-24 tracking-tight leading-none">
+                        {displayName}
+                      </span>
+                      {isActive && (
+                        <span className="relative flex h-2 w-2">
+                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${dotColorClass}`}></span>
+                          <span className={`relative inline-flex rounded-full h-2 w-2 ${dotColorClass}`}></span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-xl font-extrabold tracking-tighter text-text-primary">
+                        {count}
+                      </span>
+                      <span className="text-[9px] text-text-secondary font-semibold uppercase">hits</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Horizontal Bar Chart representation */}
+            <div className="lg:col-span-2 h-64 border border-accent p-4 rounded-2xl bg-slate-50/50">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  layout="vertical"
+                  data={Object.keys(gestureCounts).map((key) => ({
+                    name: key.replace(/_/g, ' '),
+                    count: gestureCounts[key],
+                  }))}
+                  margin={{ top: 10, right: 10, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E5E7EB" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#4B5563', fontSize: 10, fontWeight: 'bold' }} 
+                    width={110}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    itemStyle={{ color: '#1E3A5F', fontWeight: 'bold' }}
+                    cursor={{ fill: 'transparent' }}
+                  />
+                  <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={14}>
+                    {Object.keys(gestureCounts).map((key, idx) => {
+                      const colors = {
+                        OPEN_PALM: '#3B82F6',
+                        INDEX_ONLY: '#10B981',
+                        INDEX_MIDDLE_EXTENDED: '#F59E0B',
+                        INDEX_THUMB_PINCH: '#8B5CF6',
+                        MIDDLE_THUMB_PINCH: '#EC4899',
+                        FIST: '#EF4444',
+                      };
+                      return <Cell key={`cell-${idx}`} fill={colors[key as keyof typeof colors] || '#64748B'} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       </div>

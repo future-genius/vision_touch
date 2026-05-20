@@ -164,6 +164,12 @@ class WebSocketServer:
                             "message": "Cursor calibration settings updated successfully"
                         }))
 
+                    elif event_type == "speak_status":
+                        self.runner.speak_current_status()
+
+                    elif event_type == "speak_dashboard":
+                        self.runner.speak_dashboard_info()
+
                     elif event_type == "ping":
                         await websocket.send(json.dumps({"type": "pong", "timestamp": time.time()}))
 
@@ -209,6 +215,10 @@ class EngineRunner:
         self.last_sys_metric_time = 0.0
         self.cpu_load = 0.0
         self.ram_load = 0.0
+        
+        self.prev_hand_detected = False
+        self.prev_stabilized_gesture = "None"
+        self.last_gesture_speech_time = 0.0
 
     def initialize(self):
         self.hand_tracker = HandTracker()
@@ -234,6 +244,22 @@ class EngineRunner:
         except Exception as e:
             logger.error(f"Failed to fetch database mappings: {e}")
         return False
+
+    def speak_current_status(self):
+        if not self.voice_engine:
+            return
+        if self.prev_hand_detected:
+            status_text = "Current status. Gesture tracking is active. Hand detected."
+        else:
+            status_text = "Current status. No hand detected. System stands by."
+        self.voice_engine.speak(status_text)
+
+    def speak_dashboard_info(self):
+        if not self.voice_engine:
+            return
+        fps = int(self.camera.fps) if (self.camera and hasattr(self.camera, 'fps')) else 0
+        info_text = f"Dashboard info. Current status: system online. CPU utilization is {int(self.cpu_load)} percent. RAM load is {int(self.ram_load)} percent. Processing at {fps} frames per second."
+        self.voice_engine.speak(info_text)
 
     def start_feeding(self, gesture_key):
         self.feed_mode = True
@@ -281,6 +307,8 @@ class EngineRunner:
         if self.multimodal_fusion:
             self.multimodal_fusion.stop()
         if self.voice_engine:
+            self.voice_engine.speak("system offline")
+            time.sleep(1.2)
             self.voice_engine.stop()
         if self.pose_head_tracker:
             self.pose_head_tracker.release()
@@ -300,6 +328,14 @@ class EngineRunner:
             
             # Process hand landmarks
             landmarks, tracking_status, raw_landmarks = self.hand_tracker.process_frame(frame)
+            
+            # Track hand detection status transition
+            hand_detected = tracking_status in ["Active", "Coasting"] and len(landmarks) > 0
+            if hand_detected != self.prev_hand_detected:
+                if not hand_detected:
+                    if self.voice_engine:
+                        self.voice_engine.speak("no hand detected")
+                self.prev_hand_detected = hand_detected
             
             # Process head pose (pitch and yaw offsets)
             pitch, yaw = 0.0, 0.0
@@ -331,6 +367,12 @@ class EngineRunner:
                 elif voice_command == "pause":
                     action_state = "Voice Tracking Standby"
                     self.mouse_controller.release_all()
+                elif voice_command == "status":
+                    self.speak_current_status()
+                    action_state = "Voice Status Check"
+                elif voice_command == "dashboard":
+                    self.speak_dashboard_info()
+                    action_state = "Voice Dashboard Check"
             
             if tracking_status in ["Active", "Coasting"] and landmarks:
                 # 1. Run predictions
@@ -348,6 +390,15 @@ class EngineRunner:
                     stabilized_gesture = self.gesture_engine.stabilize("None")
 
                 gesture_name = stabilized_gesture
+                
+                # Voice announcements for recognized gesture
+                if stabilized_gesture != "None" and stabilized_gesture != self.prev_stabilized_gesture:
+                    now_g = time.time()
+                    if now_g - self.last_gesture_speech_time >= 2.5:
+                        if self.voice_engine:
+                            self.voice_engine.speak("gesture recognized")
+                        self.last_gesture_speech_time = now_g
+                self.prev_stabilized_gesture = stabilized_gesture
                 
                 # 2. Execute actions & pointer movement
                 if stabilized_gesture in ["OPEN_PALM"]:
@@ -416,6 +467,7 @@ class EngineRunner:
                 self.gesture_engine.gesture_history.clear()
                 self.mouse_controller.release_all()
                 self.gesture_engine.prev_thumb_y = None
+                self.prev_stabilized_gesture = "None"
             
             # Query hardware metrics periodically (every 1.5s) to avoid UI lockups
             now = time.time()

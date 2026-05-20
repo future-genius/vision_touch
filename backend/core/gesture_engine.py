@@ -60,9 +60,9 @@ class GestureEngine:
         self.mappings = [
             {"gesture_key": "OPEN_PALM", "action_type": "move"},
             {"gesture_key": "INDEX_ONLY", "action_type": "scroll_up", "cooldown": self.scroll_cooldown},
-            {"gesture_key": "INDEX_MIDDLE_JOINED", "action_type": "right_click", "cooldown": self.click_cooldown},
-            {"gesture_key": "INDEX_THUMB_PINCH", "action_type": "scroll_down", "cooldown": self.scroll_cooldown},
-            {"gesture_key": "THUMB_ONLY", "action_type": "left_click", "cooldown": self.click_cooldown},
+            {"gesture_key": "INDEX_MIDDLE_EXTENDED", "action_type": "scroll_down", "cooldown": self.scroll_cooldown},
+            {"gesture_key": "INDEX_THUMB_PINCH", "action_type": "drag", "cooldown": self.drag_cooldown},
+            {"gesture_key": "MIDDLE_THUMB_PINCH", "action_type": "right_click", "cooldown": self.click_cooldown},
             {"gesture_key": "FIST", "action_type": "pause"}
         ]
 
@@ -174,49 +174,43 @@ class GestureEngine:
             def dist(a, b):
                 return math.sqrt((a['x'] - b['x'])**2 + (a['y'] - b['y'])**2 + (a['z'] - b['z'])**2)
 
-            # Finger extension heuristics (wrist reference 0)
-            index_extended = dist(lm[8], lm[0]) > dist(lm[6], lm[0]) * 1.10
-            middle_extended = dist(lm[12], lm[0]) > dist(lm[10], lm[0]) * 1.10
-            ring_extended = dist(lm[16], lm[0]) > dist(lm[14], lm[0]) * 1.10
-            pinky_extended = dist(lm[20], lm[0]) > dist(lm[18], lm[0]) * 1.10
-            
-            # Thumb extension: check distance from thumb tip (4) to index knuckle (5)
-            # An extended thumb is far from the index knuckle, folded thumb is close.
-            thumb_extended = dist(lm[4], lm[5]) > dist(lm[2], lm[5]) * 1.12
-
-            # Key distances for pinches & joints
-            index_thumb_dist = dist(lm[8], lm[4])
-            index_middle_dist = dist(lm[8], lm[12])
-            
             # Palm reference scale: Wrist (0) to index MCP (5)
             palm_scale = dist(lm[0], lm[5])
             if palm_scale < 1e-5:
                 palm_scale = 1e-5
 
             # Normalized thresholds scaled dynamically to palm size
-            pinch_threshold = palm_scale * 0.40
-            joined_threshold = palm_scale * 0.30
+            pinch_threshold = palm_scale * 0.38
+            
+            # Key distances for pinches & joints
+            index_thumb_dist = dist(lm[8], lm[4])
+            middle_thumb_dist = dist(lm[12], lm[4])
 
-            # 1. INDEX_THUMB_PINCH (Text selection / Drag / Left Click)
-            if index_thumb_dist < pinch_threshold:
+            # 1. INDEX_THUMB_PINCH (Left Click / Select Text / Drag) - priority 1
+            if index_thumb_dist < pinch_threshold and index_thumb_dist < middle_thumb_dist:
                 return "INDEX_THUMB_PINCH", 1.0
 
-            # 2. FIST (Closed hand) – all fingers folded
+            # 2. MIDDLE_THUMB_PINCH (Right Click) - priority 2
+            if middle_thumb_dist < pinch_threshold and middle_thumb_dist < index_thumb_dist:
+                return "MIDDLE_THUMB_PINCH", 1.0
+
+            # Finger extension heuristics (wrist reference 0)
+            index_extended = dist(lm[8], lm[0]) > dist(lm[6], lm[0]) * 1.10
+            middle_extended = dist(lm[12], lm[0]) > dist(lm[10], lm[0]) * 1.10
+            ring_extended = dist(lm[16], lm[0]) > dist(lm[14], lm[0]) * 1.10
+            pinky_extended = dist(lm[20], lm[0]) > dist(lm[18], lm[0]) * 1.10
+            
+            # 3. FIST (Closed hand) – all fingers folded
             if not (index_extended or middle_extended or ring_extended or pinky_extended):
                 return "FIST", 1.0
 
-            # 3. INDEX_MIDDLE_JOINED (Right click)
+            # 4. INDEX_MIDDLE_EXTENDED (Middle finger + index finger -> Scroll down)
             if index_extended and middle_extended and not ring_extended and not pinky_extended:
-                if index_middle_dist < joined_threshold:
-                    return "INDEX_MIDDLE_JOINED", 1.0
+                return "INDEX_MIDDLE_EXTENDED", 1.0
 
-            # 4. INDEX_ONLY (Scroll up)
+            # 5. INDEX_ONLY (Index finger alone -> Scroll up)
             if index_extended and not (middle_extended or ring_extended or pinky_extended):
                 return "INDEX_ONLY", 1.0
-
-            # 5. THUMB_ONLY (Scroll down)
-            if thumb_extended and not (index_extended or middle_extended or ring_extended or pinky_extended):
-                return "THUMB_ONLY", 1.0
 
             # 6. OPEN_PALM (Pointer movement)
             if index_extended and middle_extended and ring_extended and pinky_extended:
@@ -257,11 +251,10 @@ class GestureEngine:
         keys_to_search = {
             "OPEN_PALM": ["move", "index_pointer", "open_palm"],
             "INDEX_ONLY": ["scroll_up", "index_only"],
-            "INDEX_THUMB_PINCH": ["scroll_down", "index_thumb_pinch"],
-            "INDEX_MIDDLE_JOINED": ["right_click", "index_middle_joined"],
-            "FIST": ["pause", "fist"],
-            "THUMB_ONLY": ["left_click", "thumb_only"],
-            "THUMB_INDEX_MIDDLE": ["shortcut", "media", "app_launch", "thumb_index_middle", "double_click"]
+            "INDEX_MIDDLE_EXTENDED": ["scroll_down", "index_middle_extended", "index_middle_joined", "scroll"],
+            "INDEX_THUMB_PINCH": ["left_click", "drag", "index_thumb_pinch", "scroll_down"],
+            "MIDDLE_THUMB_PINCH": ["right_click", "middle_thumb_pinch"],
+            "FIST": ["pause", "fist"]
         }.get(normalized_label, [normalized_label.lower()])
 
         for map_item in self.mappings:
