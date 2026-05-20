@@ -21,6 +21,12 @@ export interface AiData {
   actionState: string;
   isFeeding: boolean;
   feedGestureKey: string | null;
+  activeApp: string;
+  headPitch: number;
+  headYaw: number;
+  voiceCommand: string;
+  cpuLoad: number;
+  ramLoad: number;
 }
 
 export interface SystemLog {
@@ -67,7 +73,13 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     cursorY: 0,
     actionState: 'None',
     isFeeding: false,
-    feedGestureKey: null
+    feedGestureKey: null,
+    activeApp: 'General',
+    headPitch: 0.0,
+    headYaw: 0.0,
+    voiceCommand: 'None',
+    cpuLoad: 0,
+    ramLoad: 0
   });
 
   const [history, setHistory] = useState<{ time: string; confidence: number; fps: number }[]>([]);
@@ -183,7 +195,13 @@ export const AiStreamProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               cursorY: eventData.cursorY,
               actionState: eventData.actionState,
               isFeeding: eventData.isFeeding,
-              feedGestureKey: eventData.feedGestureKey
+              feedGestureKey: eventData.feedGestureKey,
+              activeApp: eventData.activeApp || 'General',
+              headPitch: eventData.headPitch || 0.0,
+              headYaw: eventData.headYaw || 0.0,
+              voiceCommand: eventData.voiceCommand || 'None',
+              cpuLoad: eventData.cpuLoad || 0,
+              ramLoad: eventData.ramLoad || 0
             }));
 
             // Sync metrics history

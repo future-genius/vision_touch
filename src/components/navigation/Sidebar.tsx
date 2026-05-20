@@ -56,8 +56,8 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
       isMobileOpen ? "translate-x-0" : "-translate-x-full"
     )}>
       <div className="p-6 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center p-2 shadow-lg shadow-primary/20 overflow-hidden">
-          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border border-accent bg-white">
+          <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
         </div>
         <h1 className="text-xl font-black text-primary tracking-tighter uppercase">VisionTouch</h1>
       </div>
@@ -145,7 +145,7 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-accent space-y-3">
-        {user && (
+        {user ? (
           <Link 
             to="/dashboard/profile"
             onClick={handleNavClick}
@@ -157,25 +157,46 @@ export function Sidebar({ isMobileOpen, setIsMobileOpen }: SidebarProps) {
             )}
           >
             <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/10 overflow-hidden flex items-center justify-center">
-              {user.user_metadata.avatar_url ? (
+              {user.user_metadata?.avatar_url ? (
                 <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <User className="w-4 h-4 text-primary" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-primary truncate">{user.user_metadata.full_name || 'Vision User'}</p>
-              <p className="text-[10px] text-text-secondary truncate uppercase font-bold tracking-tighter">{role}</p>
+              <p className="text-xs font-black text-primary truncate">{user.user_metadata?.full_name || 'Vision User'}</p>
+              <p className="text-[10px] text-text-secondary truncate uppercase font-bold tracking-tighter">{role || 'User'}</p>
             </div>
           </Link>
+        ) : (
+          <div className="flex items-center gap-3 px-3 py-2 rounded-2xl border border-transparent">
+            <div className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
+              <User className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-slate-500 truncate">Guest Mode</p>
+              <p className="text-[10px] text-slate-450 truncate uppercase font-bold tracking-tighter">Offline</p>
+            </div>
+          </div>
         )}
-        <button 
-          onClick={signOut}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-error hover:bg-error/5 transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </button>
+        
+        {user ? (
+          <button 
+            onClick={signOut}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-error hover:bg-error/5 transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </button>
+        ) : (
+          <Link 
+            to="/auth"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+          >
+            <LogOut className="w-4 h-4 transform rotate-180" />
+            Sign In with Google
+          </Link>
+        )}
       </div>
     </aside>
   );

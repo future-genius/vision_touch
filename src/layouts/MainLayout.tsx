@@ -4,15 +4,25 @@ import { Sidebar } from '../components/navigation/Sidebar';
 import { Menu, X, Camera, CameraOff, Loader2 } from 'lucide-react';
 import { useWebVision } from '../context/WebVisionContext';
 import { useAiStream } from '../hooks/useAiStream';
+import { VirtualCursor } from '../components/VirtualCursor';
+import { SpatialOverlay } from '../components/SpatialOverlay';
+import { CinematicSplash } from '../components/dashboard/CinematicSplash';
 
 export function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const { isActive, isInitializing, startCamera, stopCamera, error } = useWebVision();
   const { isConnected } = useAiStream();
 
   return (
     <div className="flex h-screen bg-background relative">
+      {showSplash && <CinematicSplash onComplete={() => setShowSplash(false)} />}
+      
       <Sidebar isMobileOpen={isMobileMenuOpen} setIsMobileOpen={setIsMobileMenuOpen} />
+      
+      {/* Real-time spatial tracking components */}
+      {isActive && <VirtualCursor />}
+      {isActive && <SpatialOverlay />}
       
       <main className="flex-1 md:ml-64 flex flex-col h-screen overflow-hidden">
         {/* Header */}

@@ -11,8 +11,8 @@ export function Login() {
       <div className="max-w-md w-full bg-white rounded-[40px] shadow-2xl border border-accent overflow-hidden">
         <div className="bg-primary p-12 text-center text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-          <div className="w-20 h-20 rounded-[32px] bg-white/20 flex items-center justify-center mx-auto mb-6 backdrop-blur-xl p-4 relative z-10 shadow-2xl">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+          <div className="w-20 h-20 rounded-[32px] bg-white flex items-center justify-center mx-auto mb-6 backdrop-blur-xl p-2 relative z-10 shadow-2xl border border-white/25">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-4xl font-black tracking-tighter uppercase relative z-10">VisionTouch</h1>
           <p className="text-white/60 text-[10px] font-black uppercase tracking-[0.3em] mt-3 relative z-10">Neural Interface v4.0</p>

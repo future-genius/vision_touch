@@ -1,16 +1,41 @@
 import os
 import pickle
 import time
+import math
 import numpy as np
 from collections import Counter
 from backend.core.logger import logger
 from backend.core.utils import config, MODEL_PATH, LABEL_ENCODER_PATH, map_legacy_gesture_keys
+
+class HoltLinearSmoother:
+    """
+    Holt's Double Exponential Smoothing (Holt's Linear) for trend-aware signal smoothing.
+    """
+    def __init__(self, alpha=0.5, beta=0.3):
+        self.alpha = alpha
+        self.beta = beta
+        self.s = None
+        self.b = None
+
+    def update(self, value):
+        if self.s is None or self.b is None:
+            self.s = value
+            self.b = 0.0
+            return value
+        
+        last_s = self.s
+        self.s = self.alpha * value + (1.0 - self.alpha) * (self.s + self.b)
+        self.b = self.beta * (self.s - last_s) + (1.0 - self.beta) * self.b
+        return self.s + self.b
+
 
 class GestureEngine:
     def __init__(self, standalone=True):
         self.standalone = standalone
         self.clf = None
         self.label_encoder = None
+        self.ort_session = None
+        self.use_onnx = False
         
         # Load timing configurations
         g_conf = config.get("gestures", {})
@@ -21,8 +46,9 @@ class GestureEngine:
         self.drag_release_delay = g_conf.get("drag_release_delay_ms", 150) / 1000.0
         self.confidence_threshold = g_conf.get("confidence_threshold", 0.65)
 
-        # Stabilization queue
+        # Stabilization and smoothing
         self.gesture_history = []
+        self.conf_smoother = HoltLinearSmoother(alpha=0.6, beta=0.25)
 
         # Action states
         self.last_action_times = {}
@@ -33,12 +59,11 @@ class GestureEngine:
         # Factory mappings for standalone modes
         self.mappings = [
             {"gesture_key": "OPEN_PALM", "action_type": "move"},
-            {"gesture_key": "INDEX_ONLY", "action_type": "left_click", "cooldown": self.click_cooldown},
+            {"gesture_key": "INDEX_ONLY", "action_type": "scroll_up", "cooldown": self.scroll_cooldown},
             {"gesture_key": "INDEX_MIDDLE_JOINED", "action_type": "right_click", "cooldown": self.click_cooldown},
-            {"gesture_key": "INDEX_THUMB_PINCH", "action_type": "drag", "cooldown": self.drag_cooldown},
-            {"gesture_key": "THUMB_ONLY", "action_type": "scroll", "cooldown": self.scroll_cooldown},
-            {"gesture_key": "FIST", "action_type": "pause"},
-            {"gesture_key": "THUMB_INDEX_MIDDLE", "action_type": "double_click", "cooldown": self.click_cooldown}
+            {"gesture_key": "INDEX_THUMB_PINCH", "action_type": "scroll_down", "cooldown": self.scroll_cooldown},
+            {"gesture_key": "THUMB_ONLY", "action_type": "left_click", "cooldown": self.click_cooldown},
+            {"gesture_key": "FIST", "action_type": "pause"}
         ]
 
     def set_mappings(self, db_mappings):
@@ -51,9 +76,39 @@ class GestureEngine:
 
     def load_model(self):
         """
-        Loads the pickled machine learning classifier models.
-        Fail fast if missing in standalone CLI test modes.
+        Loads the gesture classifier models (ONNX format if available, fallback to pickled classifier).
         """
+        onnx_conf = config.get("onnx", {})
+        onnx_enabled = onnx_conf.get("enabled", False)
+        onnx_path = onnx_conf.get("model_path", "backend/models/gesture_model.onnx")
+        
+        # Resolve absolute path for model
+        if not os.path.isabs(onnx_path):
+            from backend.core.utils import WORKSPACE_ROOT
+            onnx_path = os.path.join(WORKSPACE_ROOT, onnx_path)
+
+        if onnx_enabled and os.path.exists(onnx_path):
+            try:
+                import onnxruntime as ort
+                # Load label encoder
+                if os.path.exists(LABEL_ENCODER_PATH):
+                    with open(LABEL_ENCODER_PATH, "rb") as f:
+                        self.label_encoder = pickle.load(f)
+                
+                # Check for GPU (CUDA) provider, default to CPU
+                available_providers = ort.get_available_providers()
+                providers = ['CUDAExecutionProvider', 'CPUExecutionProvider'] if 'CUDAExecutionProvider' in available_providers else ['CPUExecutionProvider']
+                self.ort_session = ort.InferenceSession(onnx_path, providers=providers)
+                self.use_onnx = True
+                logger.info(f"ONNX gesture classifier model loaded successfully on providers: {self.ort_session.get_providers()}")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to load ONNX session: {e}. Falling back to pickle.")
+                self.use_onnx = False
+        else:
+            self.use_onnx = False
+
+        # Pickle fallback
         if not os.path.exists(MODEL_PATH) or not os.path.exists(LABEL_ENCODER_PATH):
             logger.warning("Classifier models not found on disk.")
             return False
@@ -107,32 +162,30 @@ class GestureEngine:
     def predict(self, landmarks):
         """
         Predicts label and confidence score from raw landmarks.
-        Uses a high-performance heuristic classifier first, falling back to ML.
+        Uses a high-performance heuristic classifier first.
         """
         if not landmarks or len(landmarks) < 21:
             return "None", 0.0
 
         try:
-            # 1. Run scale-invariant and rotation-invariant Heuristic Rules
             lm = [self._get_coords(l) for l in landmarks]
 
             # Calculate distance between two joints
             def dist(a, b):
                 return math.sqrt((a['x'] - b['x'])**2 + (a['y'] - b['y'])**2 + (a['z'] - b['z'])**2)
 
-            # Check extension of non-thumb fingers relative to their bases (MCP joints)
-            # A finger is extended if the distance from MCP to Tip is greater than MCP to PIP
-            index_extended = dist(lm[5], lm[8]) > dist(lm[5], lm[6]) * 1.45
-            middle_extended = dist(lm[9], lm[12]) > dist(lm[9], lm[10]) * 1.45
-            ring_extended = dist(lm[13], lm[16]) > dist(lm[13], lm[14]) * 1.45
-            pinky_extended = dist(lm[17], lm[20]) > dist(lm[17], lm[18]) * 1.45
+            # Finger extension heuristics (wrist reference 0)
+            index_extended = dist(lm[8], lm[0]) > dist(lm[6], lm[0]) * 1.10
+            middle_extended = dist(lm[12], lm[0]) > dist(lm[10], lm[0]) * 1.10
+            ring_extended = dist(lm[16], lm[0]) > dist(lm[14], lm[0]) * 1.10
+            pinky_extended = dist(lm[20], lm[0]) > dist(lm[18], lm[0]) * 1.10
             
-            # Thumb: extended if it is far horizontally/laterally from index base MCP (5)
-            thumb_extended = dist(lm[4], lm[5]) > dist(lm[2], lm[5]) * 1.15
+            # Thumb extension: check distance from thumb tip (4) to index knuckle (5)
+            # An extended thumb is far from the index knuckle, folded thumb is close.
+            thumb_extended = dist(lm[4], lm[5]) > dist(lm[2], lm[5]) * 1.12
 
             # Key distances for pinches & joints
             index_thumb_dist = dist(lm[8], lm[4])
-            middle_thumb_dist = dist(lm[12], lm[4])
             index_middle_dist = dist(lm[8], lm[12])
             
             # Palm reference scale: Wrist (0) to index MCP (5)
@@ -141,60 +194,43 @@ class GestureEngine:
                 palm_scale = 1e-5
 
             # Normalized thresholds scaled dynamically to palm size
-            pinch_threshold = palm_scale * 0.42
-            joined_threshold = palm_scale * 0.32
+            pinch_threshold = palm_scale * 0.40
+            joined_threshold = palm_scale * 0.30
 
-            # FIST (Closed hand) – all fingers folded
-            if not (index_extended or middle_extended or ring_extended or pinky_extended or thumb_extended):
-                return "FIST", 1.0
-
-            # INDEX_THUMB_PINCH (Text selection / Drag)
-            if index_thumb_dist < pinch_threshold and not (middle_extended or ring_extended or pinky_extended):
+            # 1. INDEX_THUMB_PINCH (Text selection / Drag / Left Click)
+            if index_thumb_dist < pinch_threshold:
                 return "INDEX_THUMB_PINCH", 1.0
 
-            # THUMB_INDEX_MIDDLE (Pinch thumb, index and middle together)
-            if index_thumb_dist < pinch_threshold and middle_thumb_dist < pinch_threshold and not (ring_extended or pinky_extended):
-                return "THUMB_INDEX_MIDDLE", 1.0
+            # 2. FIST (Closed hand) – all fingers folded
+            if not (index_extended or middle_extended or ring_extended or pinky_extended):
+                return "FIST", 1.0
 
-            # INDEX_MIDDLE_JOINED (Right click)
-            if index_extended and middle_extended and index_middle_dist < joined_threshold and not (ring_extended or pinky_extended):
-                return "INDEX_MIDDLE_JOINED", 1.0
+            # 3. INDEX_MIDDLE_JOINED (Right click)
+            if index_extended and middle_extended and not ring_extended and not pinky_extended:
+                if index_middle_dist < joined_threshold:
+                    return "INDEX_MIDDLE_JOINED", 1.0
 
-            # INDEX_ONLY (Left click)
+            # 4. INDEX_ONLY (Scroll up)
             if index_extended and not (middle_extended or ring_extended or pinky_extended):
                 return "INDEX_ONLY", 1.0
 
-            # THUMB_ONLY (Scroll actions)
+            # 5. THUMB_ONLY (Scroll down)
             if thumb_extended and not (index_extended or middle_extended or ring_extended or pinky_extended):
                 return "THUMB_ONLY", 1.0
 
-            # OPEN_PALM (Pointer movement)
+            # 6. OPEN_PALM (Pointer movement)
             if index_extended and middle_extended and ring_extended and pinky_extended:
                 return "OPEN_PALM", 1.0
 
             # Fallback counts for partial/loose open palm gestures
-            extended_count = sum([index_extended, middle_extended, ring_extended, pinky_extended, thumb_extended])
+            extended_count = sum([index_extended, middle_extended, ring_extended, pinky_extended])
             if extended_count >= 3:
                 return "OPEN_PALM", 0.90
                 
         except Exception as e:
             logger.debug(f"Heuristic classifier exception: {e}")
 
-        # 2. ML Classifier Fallback
-        if self.clf is None or self.label_encoder is None:
-            return "None", 0.0
-
-        try:
-            features = self.preprocess(landmarks).reshape(1, -1)
-            probabilities = self.clf.predict_proba(features)[0]
-            pred_encoded = np.argmax(probabilities)
-            confidence = float(probabilities[pred_encoded])
-            predicted_label = self.label_encoder.inverse_transform([pred_encoded])[0]
-            
-            return predicted_label, confidence
-        except Exception as e:
-            logger.debug(f"Prediction fallback exception: {e}")
-            return "None", 0.0
+        return "None", 0.0
 
     def stabilize(self, raw_label):
         """
@@ -220,11 +256,11 @@ class GestureEngine:
         normalized_label = map_legacy_gesture_keys(label)
         keys_to_search = {
             "OPEN_PALM": ["move", "index_pointer", "open_palm"],
-            "INDEX_ONLY": ["left_click", "pinch_click", "index_only"],
-            "INDEX_THUMB_PINCH": ["drag", "two_finger_spread", "index_thumb_pinch"],
+            "INDEX_ONLY": ["scroll_up", "index_only"],
+            "INDEX_THUMB_PINCH": ["scroll_down", "index_thumb_pinch"],
             "INDEX_MIDDLE_JOINED": ["right_click", "index_middle_joined"],
-            "FIST": ["fist", "fist_pause"],
-            "THUMB_ONLY": ["scroll", "thumb_only"],
+            "FIST": ["pause", "fist"],
+            "THUMB_ONLY": ["left_click", "thumb_only"],
             "THUMB_INDEX_MIDDLE": ["shortcut", "media", "app_launch", "thumb_index_middle", "double_click"]
         }.get(normalized_label, [normalized_label.lower()])
 
@@ -294,23 +330,15 @@ class GestureEngine:
             else:
                 self.drag_lost_time = None
 
-        # 4. Handle Scroll action
-        if action_type == "scroll" and landmarks:
-            thumb_tip = landmarks[4]
-            current_y = thumb_tip["y"]
-            if self.prev_thumb_y is not None:
-                y_diff = current_y - self.prev_thumb_y
-                # If thumb movement is fast enough
-                if abs(y_diff) > 0.012:
-                    direction = "up" if y_diff < 0 else "down"
-                    # Scale scroll ticks by speed
-                    amount = max(1, int(abs(y_diff) * 200))
-                    mouse_ctrl.scroll(direction=direction, amount=amount)
-                    action_name = f"Scroll {direction.upper()}"
-                    self.last_action_times[action_type] = now
-            self.prev_thumb_y = current_y
-        else:
-            self.prev_thumb_y = None
+        # 4. Handle Scroll actions
+        if action_type == "scroll_up":
+            mouse_ctrl.scroll(direction="up", amount=1)
+            action_name = "Scroll UP"
+            self.last_action_times[action_type] = now
+        elif action_type == "scroll_down":
+            mouse_ctrl.scroll(direction="down", amount=1)
+            action_name = "Scroll DOWN"
+            self.last_action_times[action_type] = now
 
         # 5. Process clicks
         if is_click and now - last_exec >= cooldown:

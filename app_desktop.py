@@ -35,7 +35,28 @@ if __name__ == "__main__":
     # 2. Let the server bind and initialize the MediaPipe engines
     time.sleep(2.0)
     
-    # 3. Open a native desktop window pointing to the dashboard
+    # 3. Initialize and start the System Tray Icon
+    from backend.core.tray_icon import SystemTrayManager
+    
+    def show_window():
+        try:
+            print("[Desktop App] Showing window...")
+            window.show()
+        except Exception as e:
+            print(f"[Desktop App] Error bringing window to focus: {e}")
+
+    def quit_app():
+        try:
+            print("[Desktop App] Cleaning up and exiting...")
+            window.destroy()
+        except Exception as e:
+            print(f"[Desktop App] Error destroying window: {e}")
+        os._exit(0)
+
+    tray = SystemTrayManager(on_show_window=show_window, on_quit=quit_app)
+    tray.start()
+
+    # 4. Open a native desktop window pointing to the dashboard
     print("[Desktop App] Launching native window...")
     window = webview.create_window(
         title="VisionTouch - AI Gestures Controller",
@@ -46,6 +67,6 @@ if __name__ == "__main__":
         min_size=(1024, 768)
     )
     
-    # 4. Start webview event loop (blocks until window is closed)
+    # 5. Start webview event loop (blocks until window is closed)
     webview.start()
     print("[Desktop App] Window closed. Cleaning up resources and exiting...")

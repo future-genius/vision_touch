@@ -23,16 +23,16 @@ def load_config():
     # Factory defaults fallback
     return {
         "camera": {"camera_index": None, "frame_width": 640, "frame_height": 480, "fps": 30},
-        "cursor": {"sensitivity": 1.8, "smoothing": 0.50, "dead_zone": 0.02, "screen_scale": 1.0,
-                   "one_euro": {"min_cutoff": 0.6, "beta": 0.04, "d_cutoff": 1.0}},
+        "cursor": {"sensitivity": 1.2, "smoothing": 0.80, "dead_zone": 0.001, "screen_scale": 1.0,
+                   "one_euro": {"min_cutoff": 0.05, "beta": 0.03, "d_cutoff": 1.0}},
         "active_zone": {"min_x": 0.30, "max_x": 0.70, "min_y": 0.25, "max_y": 0.65},
         "gestures": {
             "pinch_threshold": 0.05,
             "confidence_threshold": 0.65,
             "click_cooldown_ms": 400,
-            "scroll_cooldown_ms": 30,
+            "scroll_cooldown_ms": 100,
             "drag_cooldown_ms": 30,
-            "stabilization_frames": 4,
+            "stabilization_frames": 2,
             "drag_release_delay_ms": 150
         },
         "websocket": {"host": "0.0.0.0", "port": 8765, "ping_interval": 5.0}
@@ -62,11 +62,36 @@ def map_legacy_gesture_keys(key):
     mapping = {
         "move": "OPEN_PALM",
         "index_pointer": "OPEN_PALM",
-        "click": "INDEX_ONLY",
-        "pinch_click": "INDEX_ONLY",
+        "click": "INDEX_THUMB_PINCH",
+        "pinch_click": "INDEX_THUMB_PINCH",
         "right_click": "INDEX_MIDDLE_JOINED",
         "fist": "FIST",
         "scroll": "THUMB_ONLY",
-        "system_gesture": "THUMB_INDEX_MIDDLE"
+        "scroll_up": "INDEX_ONLY",
+        "scroll_down": "THUMB_ONLY",
+        "index_only": "INDEX_ONLY",
+        "thumb_only": "THUMB_ONLY"
     }
     return mapping.get(key.lower(), key.upper())
+
+def get_active_window_title():
+    """
+    Returns the title of the currently focused foreground window.
+    Uses ctypes on Windows to avoid external dependencies.
+    """
+    if not IS_WINDOWS:
+        return "Desktop"
+    try:
+        import ctypes
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        if not hwnd:
+            return "Desktop"
+        length = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+        if length == 0:
+            return "Desktop"
+        buf = ctypes.create_unicode_buffer(length + 1)
+        ctypes.windll.user32.GetWindowTextW(hwnd, buf, length + 1)
+        return buf.value
+    except Exception:
+        return "Desktop"
+

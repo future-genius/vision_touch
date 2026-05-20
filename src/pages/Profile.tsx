@@ -6,6 +6,35 @@ export function Profile() {
   const { user, role } = useAuth();
   const { data } = useAiStream();
 
+  if (!user) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-black text-primary tracking-tighter uppercase">User Profile</h1>
+          <p className="text-text-secondary">Manage your account and real-time session telemetry</p>
+        </div>
+        
+        <div className="bg-white p-10 rounded-[40px] border border-accent shadow-sm flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-6">
+          <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+            <User className="w-10 h-10" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-black text-primary tracking-tighter">Guest Mode Active</h2>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Sign in with Google to synchronize custom gesture mappings, unlock datasets management, and encrypt your cloud profile.
+            </p>
+          </div>
+          <a 
+            href="/auth" 
+            className="bg-primary text-white px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-primary/20"
+          >
+            Sign In with Google
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div>

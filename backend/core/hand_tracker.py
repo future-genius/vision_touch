@@ -6,10 +6,45 @@ import mediapipe as mp
 from backend.core.logger import logger
 from backend.core.utils import WORKSPACE_ROOT, HAND_LANDMARKER_TASK_PATH
 
+class JointKalmanFilter:
+    """
+    1D Linear Kalman Filter with velocity tracking for smoothing landmarks.
+    """
+    def __init__(self, dt=1.0/30.0, process_noise=1e-3, measurement_noise=1e-2):
+        self.dt = dt
+        self.x = np.array([0.0, 0.0]) # [pos, vel]
+        self.P = np.eye(2) * 1.0
+        self.A = np.array([[1.0, self.dt],
+                           [0.0, 1.0]])
+        self.H = np.array([[1.0, 0.0]])
+        self.Q = np.array([[ (self.dt**4)/4, (self.dt**3)/2 ],
+                           [ (self.dt**3)/2,  self.dt**2    ]]) * process_noise
+        self.R = np.array([[measurement_noise]])
+
+    def predict(self):
+        self.x = np.dot(self.A, self.x)
+        self.P = np.dot(np.dot(self.A, self.P), self.A.T) + self.Q
+        return float(self.x[0])
+
+    def update(self, measurement):
+        self.predict()
+        y = measurement - np.dot(self.H, self.x)[0]
+        S = np.dot(np.dot(self.H, self.P), self.H.T) + self.R
+        K = (np.dot(self.P, self.H.T) / S[0, 0]).flatten()
+        self.x = self.x + K * y
+        self.P = self.P - np.outer(K, np.dot(self.H, self.P))
+        return float(self.x[0])
+
+
 class HandTracker:
-    def __init__(self, max_num_hands=1, min_detection_confidence=0.45, min_tracking_confidence=0.45):
+    def __init__(self, max_num_hands=2, min_detection_confidence=0.45, min_tracking_confidence=0.45):
         # Always use modern Tasks API for consistency and compatibility
         self.use_tasks = True
+        self.max_num_hands = max_num_hands
+        self.kalman_filters = {}
+        self.occlusion_frames = 0
+        self.last_valid_landmarks = []
+        self.last_pseudo_depth = 0.0
         
         if self.use_tasks:
             logger.info("Initializing modern MediaPipe Tasks HandLandmarker...")
@@ -57,12 +92,31 @@ class HandTracker:
                 min_tracking_confidence=min_tracking_confidence
             )
 
+    def get_kf(self, hand_idx, joint_idx, coord):
+        key = (hand_idx, joint_idx, coord)
+        if key not in self.kalman_filters:
+            self.kalman_filters[key] = JointKalmanFilter()
+        return self.kalman_filters[key]
+
+    def estimate_pseudo_depth(self, landmarks):
+        if len(landmarks) >= 21:
+            w = landmarks[0]
+            k5 = landmarks[5]
+            k17 = landmarks[17]
+            d5 = ((w["x"] - k5["x"])**2 + (w["y"] - k5["y"])**2 + (w["z"] - k5["z"])**2)**0.5
+            d17 = ((w["x"] - k17["x"])**2 + (w["y"] - k17["y"])**2 + (w["z"] - k17["z"])**2)**0.5
+            return (d5 + d17) / 2.0
+        return 0.0
+
     def process_frame(self, frame):
         """
         Processes a BGR frame and returns (landmarks, tracking_status, raw_landmarks)
         """
         # Mirror / flip is done outside, ensure frame is contiguous C-order numpy array
         frame = np.ascontiguousarray(frame)
+        landmarks_list = []
+        raw_landmarks = None
+        tracking_status = "Idle"
         
         if self.use_tasks:
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -75,38 +129,82 @@ class HandTracker:
                 logger.error(f"MediaPipe Tasks detection error: {e}")
                 return [], "Idle", None
                 
-            landmarks_list = []
-            raw_landmarks = None
-            tracking_status = "Idle"
-
-            if result and result.hand_landmarks and len(result.hand_landmarks) > 0:
+            detected = result and result.hand_landmarks and len(result.hand_landmarks) > 0
+            if detected:
+                self.occlusion_frames = 0
                 tracking_status = "Active"
                 raw_landmarks = result.hand_landmarks[0]
-                for lm in raw_landmarks:
+                for idx, lm in enumerate(raw_landmarks):
+                    kx = self.get_kf(0, idx, 'x').update(lm.x)
+                    ky = self.get_kf(0, idx, 'y').update(lm.y)
+                    kz = self.get_kf(0, idx, 'z').update(lm.z)
                     landmarks_list.append({
-                        "x": lm.x,
-                        "y": lm.y,
-                        "z": lm.z
+                        "x": kx,
+                        "y": ky,
+                        "z": kz
                     })
+                self.last_valid_landmarks = landmarks_list
+                self.last_pseudo_depth = self.estimate_pseudo_depth(landmarks_list)
+            else:
+                if self.occlusion_frames < 3 and self.last_valid_landmarks:
+                    self.occlusion_frames += 1
+                    tracking_status = "Coasting"
+                    coasted = []
+                    for idx in range(len(self.last_valid_landmarks)):
+                        cx = self.get_kf(0, idx, 'x').predict()
+                        cy = self.get_kf(0, idx, 'y').predict()
+                        cz = self.get_kf(0, idx, 'z').predict()
+                        coasted.append({
+                            "x": cx,
+                            "y": cy,
+                            "z": cz
+                        })
+                    landmarks_list = coasted
+                else:
+                    self.occlusion_frames = 0
+                    self.last_valid_landmarks = []
+                    self.last_pseudo_depth = 0.0
             return landmarks_list, tracking_status, raw_landmarks
         else:
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             rgb_frame = np.ascontiguousarray(rgb_frame)
             results = self.hands.process(rgb_frame)
 
-            landmarks_list = []
-            raw_landmarks = None
-            tracking_status = "Idle"
-
-            if results.multi_hand_landmarks:
+            detected = results.multi_hand_landmarks and len(results.multi_hand_landmarks) > 0
+            if detected:
+                self.occlusion_frames = 0
                 tracking_status = "Active"
                 raw_landmarks = results.multi_hand_landmarks[0]
-                for lm in results.multi_hand_landmarks[0].landmark:
+                for idx, lm in enumerate(raw_landmarks.landmark):
+                    kx = self.get_kf(0, idx, 'x').update(lm.x)
+                    ky = self.get_kf(0, idx, 'y').update(lm.y)
+                    kz = self.get_kf(0, idx, 'z').update(lm.z)
                     landmarks_list.append({
-                        "x": lm.x,
-                        "y": lm.y,
-                        "z": lm.z
+                        "x": kx,
+                        "y": ky,
+                        "z": kz
                     })
+                self.last_valid_landmarks = landmarks_list
+                self.last_pseudo_depth = self.estimate_pseudo_depth(landmarks_list)
+            else:
+                if self.occlusion_frames < 3 and self.last_valid_landmarks:
+                    self.occlusion_frames += 1
+                    tracking_status = "Coasting"
+                    coasted = []
+                    for idx in range(len(self.last_valid_landmarks)):
+                        cx = self.get_kf(0, idx, 'x').predict()
+                        cy = self.get_kf(0, idx, 'y').predict()
+                        cz = self.get_kf(0, idx, 'z').predict()
+                        coasted.append({
+                            "x": cx,
+                            "y": cy,
+                            "z": cz
+                        })
+                    landmarks_list = coasted
+                else:
+                    self.occlusion_frames = 0
+                    self.last_valid_landmarks = []
+                    self.last_pseudo_depth = 0.0
             return landmarks_list, tracking_status, raw_landmarks
 
     def draw_skeleton(self, frame, raw_landmarks):

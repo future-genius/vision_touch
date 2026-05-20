@@ -25,6 +25,10 @@ from backend.core.hand_tracker import HandTracker
 from backend.core.mouse_controller import MouseController
 from backend.core.gesture_engine import GestureEngine
 from backend.core.ui_overlay import UIOverlay
+from backend.core.pose_head_tracker import PoseHeadTracker
+from backend.core.multimodal_fusion import MultimodalFusion
+from backend.core.context_engine import ContextEngine
+from backend.core.voice_engine import VoiceWelcomeEngine
 
 # Asynchronous DB service and training imports for WebSockets mode
 from backend.services.db_service import DbService
@@ -188,6 +192,12 @@ class EngineRunner:
         self.gesture_engine = None
         self.ui_overlay = UIOverlay()
         
+        # Multimodal and Context components
+        self.pose_head_tracker = None
+        self.multimodal_fusion = None
+        self.context_engine = None
+        self.voice_engine = None
+        
         self.db = DbService()
         self.is_running = False
         self.capture_thread = None
@@ -196,6 +206,9 @@ class EngineRunner:
         self.feed_mode = False
         self.feed_gesture_key = None
         self.last_feed_time = time.time()
+        self.last_sys_metric_time = 0.0
+        self.cpu_load = 0.0
+        self.ram_load = 0.0
 
     def initialize(self):
         self.hand_tracker = HandTracker()
@@ -203,6 +216,14 @@ class EngineRunner:
         self.gesture_engine = GestureEngine(standalone=False)
         self.gesture_engine.load_model()
         self.reload_registry()
+        
+        # Initialize context and multimodal trackers
+        self.pose_head_tracker = PoseHeadTracker()
+        self.multimodal_fusion = MultimodalFusion()
+        self.multimodal_fusion.start()
+        self.context_engine = ContextEngine()
+        self.voice_engine = VoiceWelcomeEngine()
+        self.voice_engine.speak_personalized_welcome()
 
     def reload_registry(self):
         try:
@@ -257,6 +278,12 @@ class EngineRunner:
             self.camera = None
         if self.mouse_controller:
             self.mouse_controller.release_all()
+        if self.multimodal_fusion:
+            self.multimodal_fusion.stop()
+        if self.voice_engine:
+            self.voice_engine.stop()
+        if self.pose_head_tracker:
+            self.pose_head_tracker.release()
         logger.info("Background capture stream loop stopped.")
 
     def _capture_loop(self):
@@ -274,13 +301,38 @@ class EngineRunner:
             # Process hand landmarks
             landmarks, tracking_status, raw_landmarks = self.hand_tracker.process_frame(frame)
             
+            # Process head pose (pitch and yaw offsets)
+            pitch, yaw = 0.0, 0.0
+            if self.pose_head_tracker:
+                pitch, yaw = self.pose_head_tracker.process_frame(frame)
+
+            # Process voice commands
+            voice_command = "None"
+            if self.multimodal_fusion:
+                voice_command = self.multimodal_fusion.get_latest_command()
+
             gesture_name = "None"
             gesture_key = "None"
             confidence = 0.0
             action_state = "None"
             cursor_x, cursor_y = self.mouse_controller.prev_x, self.mouse_controller.prev_y
             
-            if tracking_status == "Active" and landmarks:
+            # If voice command overrides input
+            if voice_command != "None":
+                if voice_command == "click":
+                    self.mouse_controller.left_click()
+                    action_state = "Voice Left Click"
+                elif voice_command == "double":
+                    self.mouse_controller.double_click()
+                    action_state = "Voice Double Click"
+                elif voice_command == "right":
+                    self.mouse_controller.right_click()
+                    action_state = "Voice Right Click"
+                elif voice_command == "pause":
+                    action_state = "Voice Tracking Standby"
+                    self.mouse_controller.release_all()
+            
+            if tracking_status in ["Active", "Coasting"] and landmarks:
                 # 1. Run predictions
                 gesture_key, confidence = self.gesture_engine.predict(landmarks)
                 
@@ -298,11 +350,21 @@ class EngineRunner:
                 gesture_name = stabilized_gesture
                 
                 # 2. Execute actions & pointer movement
-                if stabilized_gesture in ["OPEN_PALM", "INDEX_THUMB_PINCH"]:
+                if stabilized_gesture in ["OPEN_PALM"]:
                     index_tip = landmarks[8]
-                    # Direct cursor movement only during move or drag
-                    cursor_x, cursor_y = self.mouse_controller.move_to(index_tip["x"], index_tip["y"])
-                    action_state = "Pointer Movement" if stabilized_gesture == "OPEN_PALM" else "Text Selection / Drag"
+                    target_x = index_tip["x"]
+                    target_y = index_tip["y"]
+                    
+                    # Refine pointer using head pose (gaze proxy)
+                    gaze_assisted = config.get("multimodal", {}).get("gaze_assisted", True)
+                    gaze_gain = config.get("multimodal", {}).get("gaze_gain", 1.5)
+                    if gaze_assisted and (pitch != 0.0 or yaw != 0.0):
+                        target_x += (yaw * 0.04 * gaze_gain)
+                        target_y += (pitch * 0.04 * gaze_gain)
+                        
+                    # Direct cursor movement only during move
+                    cursor_x, cursor_y = self.mouse_controller.move_to(target_x, target_y)
+                    action_state = "Pointer Movement"
                 else:
                     # Keep cursor at previous position for clicking, scrolling, and system controls
                     cursor_x, cursor_y = self.mouse_controller.prev_x, self.mouse_controller.prev_y
@@ -312,9 +374,19 @@ class EngineRunner:
                     else:
                         action_state = "Pointer Stationary"
 
-                action_name = self.gesture_engine.execute_action(stabilized_gesture, landmarks, self.mouse_controller)
-                if action_name and action_name != "None":
-                    action_state = action_name
+                # Check context mapping rules first, fallback to standard actions
+                context_triggered = False
+                if self.context_engine:
+                    context_triggered = self.context_engine.handle_context_gesture(
+                        stabilized_gesture, landmarks, self.mouse_controller
+                    )
+                
+                if context_triggered:
+                    action_state = f"Context Shortcut ({self.context_engine.active_app})"
+                elif action_state != "Paused":
+                    action_name = self.gesture_engine.execute_action(stabilized_gesture, landmarks, self.mouse_controller)
+                    if action_name and action_name != "None":
+                        action_state = action_name
 
                 # 3. Database feeding record
                 if self.feed_mode and self.feed_gesture_key:
@@ -345,6 +417,17 @@ class EngineRunner:
                 self.mouse_controller.release_all()
                 self.gesture_engine.prev_thumb_y = None
             
+            # Query hardware metrics periodically (every 1.5s) to avoid UI lockups
+            now = time.time()
+            if now - self.last_sys_metric_time >= 1.5:
+                self.last_sys_metric_time = now
+                try:
+                    import psutil
+                    self.cpu_load = psutil.cpu_percent()
+                    self.ram_load = psutil.virtual_memory().percent
+                except Exception:
+                    pass
+
             # Broadcast telemetry packet to all UI clients
             inference_time = (time.time() - start_time) * 1000.0
             if self.ws_server and self.ws_server.clients and self.ws_server.loop:
@@ -363,7 +446,13 @@ class EngineRunner:
                         "cursorY": cursor_y,
                         "actionState": action_state,
                         "isFeeding": self.feed_mode,
-                        "feedGestureKey": self.feed_gesture_key
+                        "feedGestureKey": self.feed_gesture_key,
+                        "activeApp": self.context_engine.active_app if self.context_engine else "General",
+                        "headPitch": pitch,
+                        "headYaw": yaw,
+                        "voiceCommand": voice_command,
+                        "cpuLoad": self.cpu_load,
+                        "ramLoad": self.ram_load
                     }
                 }
                 asyncio.run_coroutine_threadsafe(

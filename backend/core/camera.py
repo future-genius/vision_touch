@@ -131,7 +131,21 @@ class Camera:
         while self.is_running:
             if self.cap and self.cap.isOpened():
                 grabbed, frame = self.cap.read()
-                if grabbed:
+                if grabbed and frame is not None:
+                    # Low-light detection and CLAHE contrast enhancement
+                    try:
+                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        mean_bright = gray.mean()
+                        if mean_bright < 50.0:
+                            lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+                            l, a, b = cv2.split(lab)
+                            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                            cl = clahe.apply(l)
+                            lab = cv2.merge((cl, a, b))
+                            frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+                    except Exception:
+                        pass
+                    
                     with self.read_lock:
                         self.grabbed = grabbed
                         self.frame = frame
@@ -140,6 +154,7 @@ class Camera:
                     time.sleep(0.005)
             else:
                 time.sleep(0.01)
+
 
     def _calculate_fps(self):
         self.frame_count += 1

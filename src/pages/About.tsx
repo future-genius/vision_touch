@@ -18,8 +18,8 @@ export function About() {
           <div className="bg-white p-8 rounded-3xl border border-accent shadow-sm flex flex-col md:flex-row gap-8 items-center md:items-start relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl" />
             
-            <div className="w-32 h-32 bg-slate-950 rounded-3xl flex items-center justify-center shadow-xl flex-shrink-0 relative z-10">
-              <img src="/logo.png" alt="Logo" className="w-20 h-20 object-contain brightness-0 invert" />
+            <div className="w-32 h-32 bg-white rounded-3xl flex items-center justify-center shadow-xl border border-accent flex-shrink-0 relative z-10 p-2">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
             </div>
             
             <div className="flex-1 text-center md:text-left relative z-10">

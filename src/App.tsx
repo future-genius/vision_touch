@@ -39,7 +39,7 @@ function App() {
         <Route path="/auth" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/remote/:token" element={<MobileRemote />} />
         
-        <Route path="/dashboard" element={user ? <MainLayout /> : <Navigate to="/auth" />}>
+        <Route path="/dashboard" element={<MainLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="camera" element={<CameraView />} />
           <Route path="gestures" element={<GesturesView />} />

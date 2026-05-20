@@ -12,8 +12,8 @@ export function Home() {
       {/* Navigation */}
       <nav className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center relative z-10">
         <Link to="/" className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-primary flex items-center justify-center p-2 shadow-lg shadow-primary/20 overflow-hidden">
-            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain brightness-0 invert" />
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border border-accent bg-white">
+            <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <span className="text-2xl font-black text-primary tracking-tighter uppercase hidden sm:block">VisionTouch</span>
         </Link>
@@ -43,9 +43,14 @@ export function Home() {
           </button>
           
           {!user ? (
-            <Link to="/auth" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20">
-              Log In
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link to="/auth" className="text-primary hover:text-primary/80 font-bold px-3 py-2 text-sm">
+                Log In
+              </Link>
+              <Link to="/dashboard" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20 flex items-center gap-2">
+                Dashboard <ArrowRight className="w-4 h-4 hidden sm:block" />
+              </Link>
+            </div>
           ) : (
             <Link to="/dashboard" className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-primary/20 flex items-center gap-2">
               Dashboard <ArrowRight className="w-4 h-4 hidden sm:block" />
@@ -94,7 +99,7 @@ export function Home() {
                 <>Start Tracking Now <Camera className="w-5 h-5" /></>
               )}
             </button>
-            <Link to={user ? "/dashboard" : "/auth"} className="px-8 py-4 rounded-2xl font-bold text-lg border border-accent hover:bg-white transition-all text-center">
+            <Link to="/dashboard" className="px-8 py-4 rounded-2xl font-bold text-lg border border-accent hover:bg-white transition-all text-center">
               Go to Dashboard
             </Link>
           </div>

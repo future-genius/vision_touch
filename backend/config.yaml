@@ -7,13 +7,13 @@ camera:
   fps: 30
 
 cursor:
-  sensitivity: 1.8         # Cursor movement multiplier
-  smoothing: 0.50          # OneEuroFilter smoothing factor
-  dead_zone: 0.02          # Micro jitter prevention dead-zone percentage (0.02 = 2%)
+  sensitivity: 1.2         # Cursor movement multiplier
+  smoothing: 0.80          # OneEuroFilter smoothing factor
+  dead_zone: 0.001         # Micro jitter prevention dead-zone percentage
   screen_scale: 1.0        # Extra scaling factor if running on high-DPI display
   one_euro:
-    min_cutoff: 0.6
-    beta: 0.04
+    min_cutoff: 0.05
+    beta: 0.03
     d_cutoff: 1.0
 
 # Active Zone defines the bounding box of comfortable hand movements mapped to full viewport
@@ -27,12 +27,29 @@ gestures:
   pinch_threshold: 0.05       # Distance threshold between joints for pinch-clicks
   confidence_threshold: 0.65  # Default fallback classification confidence
   click_cooldown_ms: 400      # Cooldown for single / double clicks to prevent accidental triggers
-  scroll_cooldown_ms: 30      # Throttle cooldown for scroll wheel ticks
+  scroll_cooldown_ms: 100     # Throttle cooldown for scroll wheel ticks
   drag_cooldown_ms: 30        # Throttle cooldown for dragging updates
-  stabilization_frames: 4     # Rolling history length for majority vote gesture smoothing
+  stabilization_frames: 2     # Rolling history length for majority vote gesture smoothing
   drag_release_delay_ms: 150  # Debounce delay before releasing mouse down to prevent tracking glitches
 
 websocket:
   host: "0.0.0.0"
   port: 8765
   ping_interval: 5.0
+
+multimodal:
+  speech_enabled: true
+  speech_threshold: 0.5
+  wake_word: "vision"
+  vosk_model_path: "backend/models/vosk-model-small-en-us-0.15"
+  gaze_assisted: true
+  gaze_gain: 1.5
+
+onnx:
+  enabled: false
+  model_path: "backend/models/gesture_model.onnx"
+
+context_engine:
+  enabled: true
+  poll_interval_sec: 1.0
+

@@ -21,6 +21,12 @@ export interface AiData {
   actionState: string;
   isFeeding: boolean;
   feedGestureKey: string | null;
+  activeApp: string;
+  headPitch: number;
+  headYaw: number;
+  voiceCommand: string;
+  cpuLoad: number;
+  ramLoad: number;
 }
 
 export interface SystemLog {

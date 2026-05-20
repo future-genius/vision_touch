@@ -21,19 +21,17 @@ ML_CLASSES = [
     "INDEX_THUMB_PINCH",
     "INDEX_MIDDLE_JOINED",
     "FIST",
-    "THUMB_ONLY",
-    "THUMB_INDEX_MIDDLE"
+    "THUMB_ONLY"
 ]
 
 # Telemetry UI descriptions
 GESTURE_INFO = {
-    "OPEN_PALM": {"name": "Pointer Movement", "description": "Move hand to control cursor.", "icon": "MousePointer2"},
-    "INDEX_ONLY": {"name": "Left Click", "description": "Extend index finger to register left click.", "icon": "Pointer"},
-    "INDEX_THUMB_PINCH": {"name": "Text Selection / Drag", "description": "Pinch thumb and index to drag.", "icon": "Sliders"},
+    "OPEN_PALM": {"name": "Pointer Movement", "description": "Move hand to control cursor position.", "icon": "MousePointer2"},
+    "INDEX_ONLY": {"name": "Scroll Up", "description": "Extend index finger alone to scroll up.", "icon": "ChevronUp"},
+    "INDEX_THUMB_PINCH": {"name": "Left Click & Drag", "description": "Pinch index and thumb to click/select text.", "icon": "Sliders"},
     "INDEX_MIDDLE_JOINED": {"name": "Right Click", "description": "Hold index and middle together for context menu.", "icon": "MousePointer"},
-    "FIST": {"name": "Pause / Stop", "description": "Clench fist to pause cursor tracking.", "icon": "CircleOff"},
-    "THUMB_ONLY": {"name": "Scroll Actions", "description": "Extend thumb to trigger scrolling.", "icon": "Scroll"},
-    "THUMB_INDEX_MIDDLE": {"name": "System Control / Toggle", "description": "Pinch three fingers to toggle UI states.", "icon": "Maximize"},
+    "FIST": {"name": "Pause / Stop", "description": "Clench fist to stay stationary.", "icon": "CircleOff"},
+    "THUMB_ONLY": {"name": "Scroll Down", "description": "Extend thumb alone to scroll down.", "icon": "ChevronDown"},
     "None": {"name": "Idle State", "description": "No hand detected on camera.", "icon": "ShieldCheck"}
 }
 
